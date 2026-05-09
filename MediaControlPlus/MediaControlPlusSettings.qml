@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import qs.Common
 import qs.Widgets
 import qs.Modules.Plugins
@@ -85,6 +86,10 @@ PluginSettings {
         {
             label: "Info",
             value: "info"
+        },
+        {
+            label: "Custom",
+            value: "custom"
         }
     ]
 
@@ -108,12 +113,25 @@ PluginSettings {
 
     function refreshSettingsUi() {
         root.reloadNestedSettings(root);
+        initLayoutOrderModel(horizontalLayoutOrderModel, loadValue("horizontalLayoutOrder", "visualizer,title,controls"));
+        initLayoutOrderModel(verticalLayoutOrderModel, loadValue("verticalLayoutOrder", "visualizer,title,controls"));
         settingsTabBar.currentIndex = root.currentTab;
         Qt.callLater(() => settingsTabBar.updateIndicator());
     }
 
     function resetVisualizerSettings(prefix) {
         const defaults = {
+            SourceMode: "mediaOnly",
+            AlwaysVisible: false,
+            Style: "bars",
+            BarAlignment: "center",
+            ColorKey: "primary",
+            UseGradient: false,
+            GradientStartKey: "primary",
+            GradientEndKey: "secondary",
+            CustomColor: Theme.primary.toString(),
+            GradientStartCustomColor: Theme.primary.toString(),
+            GradientEndCustomColor: Theme.secondary.toString(),
             ChannelMode: "mono",
             ResponseCurve: 50,
             Attack: 75,
@@ -124,6 +142,150 @@ PluginSettings {
         for (const suffix in defaults)
             root.saveValue(prefix + suffix, defaults[suffix]);
         Qt.callLater(() => root.refreshSettingsUi());
+    }
+
+    readonly property var visualizerSourceOptions: [
+        {
+            label: "Media Only",
+            value: "mediaOnly"
+        },
+        {
+            label: "All Audio",
+            value: "allAudio"
+        }
+    ]
+
+    readonly property var visualizerStyleOptions: [
+        {
+            label: "Bar Mode",
+            value: "bars"
+        },
+        {
+            label: "Dotted Particles",
+            value: "dottedParticles"
+        },
+        {
+            label: "Line Wave",
+            value: "lineWave"
+        }
+    ]
+
+    readonly property var visualizerAlignmentOptions: [
+        {
+            label: "Top",
+            value: "top"
+        },
+        {
+            label: "Center",
+            value: "center"
+        },
+        {
+            label: "Bottom",
+            value: "bottom"
+        }
+    ]
+
+    readonly property var visualizerChannelOptions: [
+        {
+            label: "Mono",
+            value: "mono"
+        },
+        {
+            label: "Mock Stereo Split",
+            value: "split"
+        },
+        {
+            label: "Mock Stereo Mirrored",
+            value: "splitReverse"
+        },
+        {
+            label: "Center Out",
+            value: "centerOut"
+        },
+        {
+            label: "Outside In",
+            value: "outsideIn"
+        }
+    ]
+
+    ListModel {
+        id: horizontalLayoutOrderModel
+    }
+
+    ListModel {
+        id: verticalLayoutOrderModel
+    }
+
+    function defaultLayoutOrder() {
+        return ["visualizer", "title", "controls"];
+    }
+
+    function labelForLayoutKey(key) {
+        switch (key) {
+        case "visualizer":
+            return "Visualizer";
+        case "title":
+            return "Title";
+        case "controls":
+            return "Controls";
+        default:
+            return key;
+        }
+    }
+
+    function initLayoutOrderModel(model, rawOrder) {
+        const defaultOrder = defaultLayoutOrder();
+        const parsedOrder = rawOrder ? rawOrder.split(/[,\s]+/).filter(Boolean) : [];
+        const seen = {};
+        const finalOrder = [];
+        for (let i = 0; i < parsedOrder.length; i++) {
+            const key = parsedOrder[i];
+            if (defaultOrder.indexOf(key) === -1 || seen[key])
+                continue;
+            seen[key] = true;
+            finalOrder.push(key);
+        }
+        for (let i = 0; i < defaultOrder.length; i++) {
+            const key = defaultOrder[i];
+            if (!seen[key])
+                finalOrder.push(key);
+        }
+        model.clear();
+        for (let i = 0; i < finalOrder.length; i++) {
+            const key = finalOrder[i];
+            model.append({
+                key: key,
+                label: labelForLayoutKey(key)
+            });
+        }
+    }
+
+    function saveLayoutOrderModel(model, settingKey) {
+        const order = [];
+        for (let i = 0; i < model.count; i++)
+            order.push(model.get(i).key);
+        saveValue(settingKey, order.join(","));
+    }
+
+    function moveLayoutOrderItem(model, settingKey, fromIndex, toIndex) {
+        if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0)
+            return;
+        if (fromIndex >= model.count || toIndex >= model.count)
+            return;
+        const items = [];
+        for (let i = 0; i < model.count; i++) {
+            const item = model.get(i);
+            items.push({
+                key: item.key,
+                label: item.label
+            });
+        }
+        const moved = items.splice(fromIndex, 1)[0];
+        items.splice(toIndex, 0, moved);
+        model.clear();
+        for (let i = 0; i < items.length; i++)
+            model.append(items[i]);
+        saveLayoutOrderModel(model, settingKey);
     }
 
     Component.onCompleted: Qt.callLater(() => root.refreshSettingsUi())
@@ -308,6 +470,95 @@ PluginSettings {
             }
 
             ToggleSetting {
+                id: horizontalAlwaysVisualizerToggle
+                settingKey: "horizontalVisualizerAlwaysVisible"
+                label: "Always Show Horizontal Visualizer"
+                description: "Keep the horizontal visualizer visible even when no media player is active"
+                defaultValue: false
+            }
+
+            ToggleSetting {
+                settingKey: "horizontalShowTitleWhenIdle"
+                label: "Show Horizontal Title When Idle"
+                description: "When the visualizer stays visible without media, also show the title area"
+                defaultValue: false
+                visible: horizontalAlwaysVisualizerToggle.value
+            }
+
+            ToggleSetting {
+                settingKey: "horizontalShowControlsWhenIdle"
+                label: "Show Horizontal Controls When Idle"
+                description: "When the visualizer stays visible without media, also show the control buttons"
+                defaultValue: false
+                visible: horizontalAlwaysVisualizerToggle.value
+            }
+
+            Column {
+                width: parent.width
+                spacing: Theme.spacingS
+
+                StyledText {
+                    text: "Horizontal Element Order"
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.surfaceText
+                }
+
+                StyledText {
+                    text: "Rearrange the visualizer, title, and controls in the horizontal widget."
+                    font.pixelSize: Theme.fontSizeSmall * 0.9
+                    opacity: 0.6
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                }
+
+                ListView {
+                    id: horizontalLayoutOrderList
+                    width: parent.width
+                    height: contentHeight
+                    spacing: Theme.spacingS
+                    interactive: false
+                    model: horizontalLayoutOrderModel
+
+                    delegate: RowLayout {
+                        width: horizontalLayoutOrderList.width
+                        height: 28
+                        spacing: Theme.spacingS
+                        readonly property int delegateIndex: index
+
+                        StyledText {
+                            text: model.label
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceText
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
+
+                        DankActionButton {
+                            width: 26
+                            height: 26
+                            iconName: "keyboard_arrow_up"
+                            backgroundColor: Theme.surfaceContainer
+                            iconColor: Theme.surfaceText
+                            enabled: delegateIndex > 0
+                            onClicked: root.moveLayoutOrderItem(horizontalLayoutOrderModel, "horizontalLayoutOrder", delegateIndex, delegateIndex - 1)
+                        }
+
+                        DankActionButton {
+                            width: 26
+                            height: 26
+                            iconName: "keyboard_arrow_down"
+                            backgroundColor: Theme.surfaceContainer
+                            iconColor: Theme.surfaceText
+                            enabled: delegateIndex < horizontalLayoutOrderModel.count - 1
+                            onClicked: root.moveLayoutOrderItem(horizontalLayoutOrderModel, "horizontalLayoutOrder", delegateIndex, delegateIndex + 1)
+                        }
+                    }
+                }
+            }
+
+            ToggleSetting {
                 settingKey: "showHorizontalTitle"
                 label: "Show Horizontal Title"
                 description: "Display track title and artist in horizontal bars"
@@ -427,8 +678,8 @@ PluginSettings {
         }
 
         SectionCard {
-            title: "Horizontal Visualizer"
-            description: "Adjust the visualizer used in horizontal bars."
+            title: "Horizontal Visualizer Layout"
+            description: "Adjust structure, source, and style for the horizontal visualizer."
 
             Row {
                 spacing: Theme.spacingS
@@ -477,33 +728,108 @@ PluginSettings {
             }
 
             SelectionSetting {
+                settingKey: "horizontalVisualizerSourceMode"
+                label: "Horizontal Visualizer Source"
+                description: "Choose whether the visualizer only reacts to media playback or all system audio"
+                defaultValue: "mediaOnly"
+                options: root.visualizerSourceOptions
+            }
+
+            SelectionSetting {
+                settingKey: "horizontalVisualizerStyle"
+                label: "Horizontal Visualizer Style"
+                description: "Choose between solid bars, dotted bars, or line wave rendering"
+                defaultValue: "bars"
+                options: root.visualizerStyleOptions
+            }
+
+            SelectionSetting {
+                settingKey: "horizontalVisualizerBarAlignment"
+                label: "Horizontal Bar Alignment"
+                description: "Align bar-style rendering to the top, center, or bottom of the visualizer lane"
+                defaultValue: "center"
+                options: root.visualizerAlignmentOptions
+            }
+
+            SelectionSetting {
                 settingKey: "horizontalVisualizerChannelMode"
                 label: "Horizontal Visualizer Channels"
-                description: "Use a single mono lane or a pseudo split layout for the horizontal visualizer"
+                description: "Use mono or mock stereo-style layouts for the horizontal visualizer"
                 defaultValue: "mono"
-                options: [
-                    {
-                        label: "Mono",
-                        value: "mono"
-                    },
-                    {
-                        label: "Pseudo Split",
-                        value: "split"
-                    },
-                    {
-                        label: "Pseudo Split Reversed",
-                        value: "splitReverse"
-                    },
-                    {
-                        label: "Center Out",
-                        value: "centerOut"
-                    },
-                    {
-                        label: "Outside In",
-                        value: "outsideIn"
-                    }
-                ]
+                options: root.visualizerChannelOptions
             }
+        }
+
+        SectionCard {
+            title: "Horizontal Visualizer Colors"
+            description: "Control solid and gradient colors for the horizontal visualizer."
+
+            ToggleSetting {
+                id: horizontalVisualizerGradientToggle
+                settingKey: "horizontalVisualizerUseGradient"
+                label: "Use Horizontal Visualizer Gradient"
+                description: "Blend the horizontal visualizer between a start and end color"
+                defaultValue: false
+            }
+
+            SelectionSetting {
+                id: horizontalVisualizerColorSetting
+                settingKey: "horizontalVisualizerColorKey"
+                label: "Horizontal Visualizer Color"
+                description: "Theme color used when the horizontal visualizer gradient is disabled"
+                defaultValue: "primary"
+                options: root.colorOptions
+                visible: !horizontalVisualizerGradientToggle.value
+            }
+
+            ColorSetting {
+                settingKey: "horizontalVisualizerCustomColor"
+                label: "Horizontal Custom Visualizer Color"
+                description: "Pick a custom solid color for the horizontal visualizer"
+                defaultValue: Theme.primary
+                visible: !horizontalVisualizerGradientToggle.value && horizontalVisualizerColorSetting.value === "custom"
+            }
+
+            SelectionSetting {
+                id: horizontalVisualizerGradientStartSetting
+                settingKey: "horizontalVisualizerGradientStartKey"
+                label: "Horizontal Gradient Start"
+                description: "Starting color for the horizontal visualizer gradient"
+                defaultValue: "primary"
+                options: root.colorOptions
+                visible: horizontalVisualizerGradientToggle.value
+            }
+
+            ColorSetting {
+                settingKey: "horizontalVisualizerGradientStartCustomColor"
+                label: "Horizontal Custom Gradient Start"
+                description: "Pick a custom start color for the horizontal visualizer gradient"
+                defaultValue: Theme.primary
+                visible: horizontalVisualizerGradientToggle.value && horizontalVisualizerGradientStartSetting.value === "custom"
+            }
+
+            SelectionSetting {
+                id: horizontalVisualizerGradientEndSetting
+                settingKey: "horizontalVisualizerGradientEndKey"
+                label: "Horizontal Gradient End"
+                description: "Ending color for the horizontal visualizer gradient"
+                defaultValue: "secondary"
+                options: root.colorOptions
+                visible: horizontalVisualizerGradientToggle.value
+            }
+
+            ColorSetting {
+                settingKey: "horizontalVisualizerGradientEndCustomColor"
+                label: "Horizontal Custom Gradient End"
+                description: "Pick a custom end color for the horizontal visualizer gradient"
+                defaultValue: Theme.secondary
+                visible: horizontalVisualizerGradientToggle.value && horizontalVisualizerGradientEndSetting.value === "custom"
+            }
+        }
+
+        SectionCard {
+            title: "Horizontal Visualizer Motion"
+            description: "Tune how quickly the horizontal visualizer responds and settles."
 
             SliderSetting {
                 settingKey: "horizontalVisualizerResponseCurve"
@@ -572,6 +898,95 @@ PluginSettings {
                 label: "Show Vertical Visualizer"
                 description: "Display the audio visualizer in vertical bars when possible"
                 defaultValue: true
+            }
+
+            ToggleSetting {
+                id: verticalAlwaysVisualizerToggle
+                settingKey: "verticalVisualizerAlwaysVisible"
+                label: "Always Show Vertical Visualizer"
+                description: "Keep the vertical visualizer visible even when no media player is active"
+                defaultValue: false
+            }
+
+            ToggleSetting {
+                settingKey: "verticalShowTitleWhenIdle"
+                label: "Show Vertical Title When Idle"
+                description: "When the visualizer stays visible without media, also show the title area"
+                defaultValue: false
+                visible: verticalAlwaysVisualizerToggle.value
+            }
+
+            ToggleSetting {
+                settingKey: "verticalShowControlsWhenIdle"
+                label: "Show Vertical Controls When Idle"
+                description: "When the visualizer stays visible without media, also show the control buttons"
+                defaultValue: false
+                visible: verticalAlwaysVisualizerToggle.value
+            }
+
+            Column {
+                width: parent.width
+                spacing: Theme.spacingS
+
+                StyledText {
+                    text: "Vertical Element Order"
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.surfaceText
+                }
+
+                StyledText {
+                    text: "Rearrange the visualizer, title, and controls in the vertical widget."
+                    font.pixelSize: Theme.fontSizeSmall * 0.9
+                    opacity: 0.6
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                }
+
+                ListView {
+                    id: verticalLayoutOrderList
+                    width: parent.width
+                    height: contentHeight
+                    spacing: Theme.spacingS
+                    interactive: false
+                    model: verticalLayoutOrderModel
+
+                    delegate: RowLayout {
+                        width: verticalLayoutOrderList.width
+                        height: 28
+                        spacing: Theme.spacingS
+                        readonly property int delegateIndex: index
+
+                        StyledText {
+                            text: model.label
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceText
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
+
+                        DankActionButton {
+                            width: 26
+                            height: 26
+                            iconName: "keyboard_arrow_up"
+                            backgroundColor: Theme.surfaceContainer
+                            iconColor: Theme.surfaceText
+                            enabled: delegateIndex > 0
+                            onClicked: root.moveLayoutOrderItem(verticalLayoutOrderModel, "verticalLayoutOrder", delegateIndex, delegateIndex - 1)
+                        }
+
+                        DankActionButton {
+                            width: 26
+                            height: 26
+                            iconName: "keyboard_arrow_down"
+                            backgroundColor: Theme.surfaceContainer
+                            iconColor: Theme.surfaceText
+                            enabled: delegateIndex < verticalLayoutOrderModel.count - 1
+                            onClicked: root.moveLayoutOrderItem(verticalLayoutOrderModel, "verticalLayoutOrder", delegateIndex, delegateIndex + 1)
+                        }
+                    }
+                }
             }
 
             ToggleSetting {
@@ -694,8 +1109,8 @@ PluginSettings {
         }
 
         SectionCard {
-            title: "Vertical Visualizer"
-            description: "Adjust the visualizer used in vertical bars."
+            title: "Vertical Visualizer Layout"
+            description: "Adjust structure, source, and style for the vertical visualizer."
 
             Row {
                 spacing: Theme.spacingS
@@ -744,33 +1159,108 @@ PluginSettings {
             }
 
             SelectionSetting {
+                settingKey: "verticalVisualizerSourceMode"
+                label: "Vertical Visualizer Source"
+                description: "Choose whether the visualizer only reacts to media playback or all system audio"
+                defaultValue: "mediaOnly"
+                options: root.visualizerSourceOptions
+            }
+
+            SelectionSetting {
+                settingKey: "verticalVisualizerStyle"
+                label: "Vertical Visualizer Style"
+                description: "Choose between solid bars, dotted bars, or line wave rendering"
+                defaultValue: "bars"
+                options: root.visualizerStyleOptions
+            }
+
+            SelectionSetting {
+                settingKey: "verticalVisualizerBarAlignment"
+                label: "Vertical Bar Alignment"
+                description: "Align bar-style rendering to the top, center, or bottom of the visualizer lane"
+                defaultValue: "center"
+                options: root.visualizerAlignmentOptions
+            }
+
+            SelectionSetting {
                 settingKey: "verticalVisualizerChannelMode"
                 label: "Vertical Visualizer Channels"
-                description: "Use a single mono lane or a pseudo split layout for the vertical visualizer"
+                description: "Use mono or mock stereo-style layouts for the vertical visualizer"
                 defaultValue: "mono"
-                options: [
-                    {
-                        label: "Mono",
-                        value: "mono"
-                    },
-                    {
-                        label: "Pseudo Split",
-                        value: "split"
-                    },
-                    {
-                        label: "Pseudo Split Reversed",
-                        value: "splitReverse"
-                    },
-                    {
-                        label: "Center Out",
-                        value: "centerOut"
-                    },
-                    {
-                        label: "Outside In",
-                        value: "outsideIn"
-                    }
-                ]
+                options: root.visualizerChannelOptions
             }
+        }
+
+        SectionCard {
+            title: "Vertical Visualizer Colors"
+            description: "Control solid and gradient colors for the vertical visualizer."
+
+            ToggleSetting {
+                id: verticalVisualizerGradientToggle
+                settingKey: "verticalVisualizerUseGradient"
+                label: "Use Vertical Visualizer Gradient"
+                description: "Blend the vertical visualizer between a start and end color"
+                defaultValue: false
+            }
+
+            SelectionSetting {
+                id: verticalVisualizerColorSetting
+                settingKey: "verticalVisualizerColorKey"
+                label: "Vertical Visualizer Color"
+                description: "Theme color used when the vertical visualizer gradient is disabled"
+                defaultValue: "primary"
+                options: root.colorOptions
+                visible: !verticalVisualizerGradientToggle.value
+            }
+
+            ColorSetting {
+                settingKey: "verticalVisualizerCustomColor"
+                label: "Vertical Custom Visualizer Color"
+                description: "Pick a custom solid color for the vertical visualizer"
+                defaultValue: Theme.primary
+                visible: !verticalVisualizerGradientToggle.value && verticalVisualizerColorSetting.value === "custom"
+            }
+
+            SelectionSetting {
+                id: verticalVisualizerGradientStartSetting
+                settingKey: "verticalVisualizerGradientStartKey"
+                label: "Vertical Gradient Start"
+                description: "Starting color for the vertical visualizer gradient"
+                defaultValue: "primary"
+                options: root.colorOptions
+                visible: verticalVisualizerGradientToggle.value
+            }
+
+            ColorSetting {
+                settingKey: "verticalVisualizerGradientStartCustomColor"
+                label: "Vertical Custom Gradient Start"
+                description: "Pick a custom start color for the vertical visualizer gradient"
+                defaultValue: Theme.primary
+                visible: verticalVisualizerGradientToggle.value && verticalVisualizerGradientStartSetting.value === "custom"
+            }
+
+            SelectionSetting {
+                id: verticalVisualizerGradientEndSetting
+                settingKey: "verticalVisualizerGradientEndKey"
+                label: "Vertical Gradient End"
+                description: "Ending color for the vertical visualizer gradient"
+                defaultValue: "secondary"
+                options: root.colorOptions
+                visible: verticalVisualizerGradientToggle.value
+            }
+
+            ColorSetting {
+                settingKey: "verticalVisualizerGradientEndCustomColor"
+                label: "Vertical Custom Gradient End"
+                description: "Pick a custom end color for the vertical visualizer gradient"
+                defaultValue: Theme.secondary
+                visible: verticalVisualizerGradientToggle.value && verticalVisualizerGradientEndSetting.value === "custom"
+            }
+        }
+
+        SectionCard {
+            title: "Vertical Visualizer Motion"
+            description: "Tune how quickly the vertical visualizer responds and settles."
 
             SliderSetting {
                 settingKey: "verticalVisualizerResponseCurve"
