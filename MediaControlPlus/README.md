@@ -34,16 +34,16 @@ dms ipc call mediaControlPlus togglePopout
 
 ### Preview
 
-![ClipboardPlus - dotted](preview/dotted-style.png)
+![media control plus - dotted](preview/dotted-style.png)
 
-![ClipboardPlus - dotted 2](preview/dotted-style-2.png)
+![media control plus - dotted 2](preview/dotted-style-2.png)
 
-![ClipboardPlus - Preview Vertical](preview/vertical.png)
+![media control plus - Preview Vertical](preview/vertical.png)
 
-![ClipboardPlus - Preview Horizontal](preview/horizontal.png)
+![media control plus - Preview Horizontal](preview/horizontal.png)
 
-![ClipboardPlus - Preview Visualizer only](preview/visualizer-only.png)
+![media control plus - Preview Visualizer only](preview/visualizer-only.png)
 
-![ClipboardPlus - some setting 1](preview/setting-1.png)
+![media control plus - some setting 1](preview/settings-1.png)
 
-![ClipboardPlus - some setting 2](preview/setting-2.png)
+![media control plus - some setting 2](preview/settings-2.png)
