@@ -28,7 +28,7 @@ Item {
     }
 
     function focusClipboardList() {
-        if (!listView)
+        if (!listView || pluginApi?.mainInstance?.emojiLaunchRequested)
             return;
         applyPendingSelectionReset();
         listView.forceActiveFocus();
@@ -54,6 +54,7 @@ Item {
             }
             if (pluginApi?.mainInstance) {
                 pluginApi.mainInstance.panelVisible = false;
+                pluginApi.mainInstance.clearEmojiLaunchRequest();
             }
         }
     }
@@ -95,7 +96,22 @@ Item {
             }
             if (pluginApi?.mainInstance) {
                 pluginApi.mainInstance.panelVisible = false;
+                pluginApi.mainInstance.clearEmojiLaunchRequest();
             }
+        }
+    }
+
+    Connections {
+        target: pluginApi?.mainInstance || null
+
+        function onEmojiLaunchRevisionChanged() {
+            if (!root.visible)
+                return;
+            Qt.callLater(() => {
+                const selector = root.emojiStandaloneLaunch ? emojiStandaloneSelector : emojiSelector;
+                if (selector && typeof selector.focusSearchField === "function")
+                    selector.focusSearchField();
+            });
         }
     }
 
@@ -128,6 +144,8 @@ Item {
     property bool enableTabNavigation: pluginApi?.pluginSettings?.enableTabNavigation ?? true
     property var categoryTabTarget: null
     property int categoryIndex: 0
+    property bool emojiStandaloneLaunch: !!(pluginApi?.mainInstance?.emojiLaunchRequested && ((pluginApi?.pluginSettings?.emojiStandaloneLayoutOnIpc ?? false) || !(pluginApi?.pluginSettings?.emojiUnicodeEnabled ?? true)))
+    property bool emojiTabTrapActive: !!(pluginApi?.mainInstance?.emojiLaunchRequested && (pluginApi?.pluginSettings?.emojiTrapTabNavigationOnIpc ?? true))
 
     function categoryButtons() {
         const buttons = [btnAll, btnText, btnImage, btnColorFilter, btnLink, btnCode, btnEmoji, btnFile];
@@ -239,11 +257,13 @@ Item {
             return "pinned";
         if (k === "todo" || k === "todos")
             return "todo";
+        if (k === "emoji" || k === "unicode" || k === "symbols")
+            return "emoji";
         return "";
     }
 
     function resolveTabOrder() {
-        const fallback = ["clipboard", "search", "category", "pinned", "todo"];
+        const fallback = ["clipboard", "search", "category", "pinned", "todo", "emoji"];
         const raw = pluginApi?.pluginSettings?.tabOrder;
         if (!raw || !raw.trim())
             return fallback;
@@ -281,6 +301,18 @@ Item {
     }
 
     function tabTargets() {
+        if (emojiTabTrapActive || emojiStandaloneLaunch) {
+            const selector = emojiStandaloneLaunch ? emojiStandaloneSelector : emojiSelector;
+            const emojiTargets = [];
+            if (selector?.searchFieldItem)
+                emojiTargets.push(selector.searchFieldItem);
+            if (selector?.recentFocusTarget && selector.recentFocusTarget.visible)
+                emojiTargets.push(selector.recentFocusTarget);
+            if (selector?.gridFocusTarget)
+                emojiTargets.push(selector.gridFocusTarget);
+            return emojiTargets;
+        }
+
         const order = resolveTabOrder();
         const enabledSet = resolveEnabledSet();
 
@@ -306,6 +338,9 @@ Item {
                 break;
             case "todo":
                 target = todoFocus;
+                break;
+            case "emoji":
+                target = emojiFocus;
                 break;
             }
 
@@ -488,10 +523,66 @@ Item {
             if (!(root.pluginApi?.pluginSettings?.closeOnOutsideClick ?? true)) {
                 return;
             }
-            const p = mapToItem(mainContainer, mouse.x, mouse.y);
-            const outside = (p.x < 0 || p.y < 0 || p.x > mainContainer.width || p.y > mainContainer.height);
+            const target = root.emojiStandaloneLaunch ? emojiStandaloneContainer : mainContainer;
+            const p = mapToItem(target, mouse.x, mouse.y);
+            const outside = (p.x < 0 || p.y < 0 || p.x > target.width || p.y > target.height);
             if (outside && root.pluginApi) {
                 root.pluginApi.closePanel(screen);
+            }
+        }
+    }
+
+    Rectangle {
+        id: emojiStandaloneContainer
+        visible: root.emojiStandaloneLaunch
+        width: Math.min(480, Math.max(340, (screen?.width || 480) * 0.28))
+        height: Math.min(560, Math.max(380, (screen?.height || 560) * 0.58))
+        x: Math.max(Theme.spacingL, ((screen?.width || parent.width) - width) / 2)
+        y: Math.max(Theme.spacingL, ((screen?.height || parent.height) - height) / 2)
+        color: Theme.withAlpha(Theme.surfaceContainer, Theme.popupTransparency)
+        radius: Theme.cornerRadius
+        border.color: Theme.outlineMedium
+        border.width: 1
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: Theme.spacingL
+            spacing: Theme.spacingM
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                StyledText {
+                    text: "Emoji & Unicode"
+                    font.pixelSize: Theme.fontSizeLarge
+                    font.weight: Font.Medium
+                    color: Theme.surfaceText
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                DankActionButton {
+                    iconName: "close"
+                    tooltipText: "Close"
+                    backgroundColor: Theme.surfaceContainerHigh
+                    iconColor: Theme.surfaceText
+                    onClicked: root.pluginApi?.closePanel(screen)
+                }
+            }
+
+            EmojiUnicodePanel {
+                id: emojiStandaloneSelector
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                pluginApi: root.pluginApi
+                screen: root.currentScreen
+                standaloneMode: true
+                trapTabNavigation: root.emojiTabTrapActive || root.emojiStandaloneLaunch
+                focusSearchOnOpen: root.visible && root.emojiStandaloneLaunch && !!root.pluginApi?.mainInstance?.emojiLaunchRequested
+                onTabForwardRequested: root.advanceTab()
+                onTabBackwardRequested: root.reverseTab()
             }
         }
     }
@@ -499,6 +590,7 @@ Item {
     // Main container - centered when not fullscreen
     Item {
         id: mainContainer
+        visible: !root.emojiStandaloneLaunch
         width: Math.min(root.contentPreferredWidth || parent.width, parent.width)
         height: Math.min(root.contentPreferredHeight || parent.height, parent.height)
         x: root.panelMarginLeft + Math.max(0, (root.screenAvailableWidth - width) / 2)
@@ -1771,7 +1863,8 @@ Item {
             id: pinnedPanel
             property bool showPinned: pluginApi?.pluginSettings?.pincardsEnabled ?? true
             property bool showTodo: pluginApi?.pluginSettings?.todoEnabled ?? true
-            visible: showPinned || showTodo
+            property bool showEmoji: pluginApi?.pluginSettings?.emojiUnicodeEnabled ?? true
+            visible: !root.emojiStandaloneLaunch && (showPinned || showTodo || showEmoji)
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: clipboardPanel.top
@@ -2201,6 +2294,88 @@ Item {
                         } // End todoFocus
                     } // End todo ColumnLayout
                 } // End todo Item
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: Theme.outlineVariant
+                    opacity: 0.4
+                    visible: (pinnedPanel.showPinned || pinnedPanel.showTodo) && pinnedPanel.showEmoji
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: pinnedPanel.showEmoji
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: Theme.spacingS
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                text: "Emoji & Unicode"
+                                font.bold: true
+                                font.pixelSize: Theme.fontSizeMedium
+                                Layout.alignment: Qt.AlignVCenter
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                        }
+
+                        FocusScope {
+                            id: emojiFocus
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            Keys.onTabPressed: event => {
+                                root.advanceTab();
+                                event.accepted = true;
+                            }
+                            Keys.onBacktabPressed: event => {
+                                root.reverseTab();
+                                event.accepted = true;
+                            }
+                            onActiveFocusChanged: {
+                                if (activeFocus && emojiSelector && typeof emojiSelector.focusSearchField === "function")
+                                    emojiSelector.focusSearchField();
+                            }
+
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: 2
+                                radius: Theme.cornerRadius
+                                color: "transparent"
+                                border.width: emojiFocus.activeFocus ? 1 : 0
+                                border.color: Theme.outlineVariant
+                                opacity: emojiFocus.activeFocus ? 0.5 : 0
+                                z: 2
+                                Behavior on opacity {
+                                    NumberAnimation {
+                                        duration: Theme.shortDuration
+                                    }
+                                }
+                            }
+
+                            EmojiUnicodePanel {
+                                id: emojiSelector
+                                anchors.fill: parent
+                                pluginApi: root.pluginApi
+                                screen: root.currentScreen
+                                standaloneMode: false
+                                trapTabNavigation: root.emojiTabTrapActive
+                                compactSidebarMode: pinnedPanel.showPinned && pinnedPanel.showTodo && pinnedPanel.showEmoji
+                                focusSearchOnOpen: root.visible && !!root.pluginApi?.mainInstance?.emojiLaunchRequested
+                                onTabForwardRequested: root.advanceTab()
+                                onTabBackwardRequested: root.reverseTab()
+                            }
+                        }
+                    }
+                }
             } // End pinnedPanel ColumnLayout
         } // End pinnedPanel
 

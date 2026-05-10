@@ -214,7 +214,7 @@ PluginSettings {
     property bool tabOrderInitInProgress: false
 
     function defaultTabOrder() {
-        return ["clipboard", "search", "category", "pinned", "todo"];
+        return ["clipboard", "search", "category", "pinned", "todo", "emoji"];
     }
 
     function labelForTabKey(key) {
@@ -229,6 +229,8 @@ PluginSettings {
             return "Pinned";
         case "todo":
             return "Todo";
+        case "emoji":
+            return "Emoji";
         default:
             return key;
         }
@@ -629,7 +631,7 @@ PluginSettings {
             ToggleSetting {
                 settingKey: "enableTabNavigation"
                 label: "Enable Tab Navigation"
-                description: "Cycle focus between clipboard, search, categories, pinned, and todo"
+                description: "Cycle focus between clipboard, search, categories, pinned, todo, and emoji"
                 defaultValue: true
             }
 
@@ -882,6 +884,13 @@ PluginSettings {
             }
 
             ToggleSetting {
+                settingKey: "emojiUnicodeEnabled"
+                label: "Enable Emoji & Unicode"
+                description: "Show the emoji and unicode selector as the last section in the left panel"
+                defaultValue: true
+            }
+
+            ToggleSetting {
                 settingKey: "notecardsEnabled"
                 label: "Enable Note Cards"
                 description: "Show notecards panel for quick notes"
@@ -897,6 +906,96 @@ PluginSettings {
                 maximum: 140
                 unit: "%"
                 leftIcon: "zoom_in"
+            }
+        }
+    }
+
+    StyledRect {
+        visible: root.currentTab === 1
+        width: parent.width
+        height: emojiColumn.implicitHeight + Theme.spacingL * 2
+        radius: Theme.cornerRadius
+        color: Theme.surfaceContainerHigh
+
+        Column {
+            id: emojiColumn
+            anchors.fill: parent
+            anchors.margins: Theme.spacingL
+            spacing: Theme.spacingM
+
+            StyledText {
+                text: "Emoji & Unicode"
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.Medium
+                color: Theme.surfaceText
+            }
+
+            ToggleSetting {
+                id: emojiStandaloneLayoutToggle
+                settingKey: "emojiStandaloneLayoutOnIpc"
+                label: "Separate Emoji Popout On IPC Call"
+                description: "When opened through the emoji IPC, show a compact emoji-only layout popout instead of using the main panel"
+                defaultValue: true
+            }
+
+            ToggleSetting {
+                settingKey: "emojiTrapTabNavigationOnIpc"
+                label: "Trap Tab Navigation On Emoji IPC Call"
+                description: "When opened specifically for emoji selection, move Tab focus only between the search field and emoji list"
+                defaultValue: true
+            }
+
+            ToggleSetting {
+                settingKey: "emojiHideRecentsWhileSearching"
+                label: "Hide Recents While Searching"
+                description: "Hide the recent emoji row as soon as the emoji search field has text"
+                defaultValue: true
+            }
+
+            SliderSetting {
+                settingKey: "emojiPopupWidth"
+                label: "Emoji Popup Width"
+                description: "Preferred width for the standalone Windows-style emoji popup"
+                defaultValue: 420
+                minimum: 320
+                maximum: 720
+                unit: "px"
+                leftIcon: "width"
+                visible: emojiStandaloneLayoutToggle.value
+            }
+
+            SliderSetting {
+                settingKey: "emojiPopupHeight"
+                label: "Emoji Popup Height"
+                description: "Preferred height for the standalone Windows-style emoji popup"
+                defaultValue: 520
+                minimum: 320
+                maximum: 820
+                unit: "px"
+                leftIcon: "height"
+                visible: emojiStandaloneLayoutToggle.value
+            }
+
+            SliderSetting {
+                settingKey: "emojiTileSize"
+                label: "Emoji Tile Size"
+                description: "Adjust the size of emoji and symbol tiles in both embedded and standalone layouts"
+                defaultValue: 38
+                minimum: 28
+                maximum: 64
+                unit: "px"
+                leftIcon: "grid_view"
+            }
+
+            SliderSetting {
+                settingKey: "emojiTileGap"
+                label: "Emoji Tile Spacing"
+                description: "Adjust the spacing between emoji tiles"
+                defaultValue: 6
+                minimum: 2
+                maximum: 16
+                unit: "px"
+                leftIcon: "space_dashboard"
             }
         }
     }

@@ -15,6 +15,14 @@ PluginComponent {
     property bool pincardsEnabled: pluginData.pincardsEnabled !== undefined ? pluginData.pincardsEnabled : true
     property bool notecardsEnabled: pluginData.notecardsEnabled !== undefined ? pluginData.notecardsEnabled : true
     property bool todoEnabled: pluginData.todoEnabled !== undefined ? pluginData.todoEnabled : true
+    property bool emojiUnicodeEnabled: pluginData.emojiUnicodeEnabled !== undefined ? pluginData.emojiUnicodeEnabled : true
+    property bool emojiStandaloneLayoutOnIpc: pluginData.emojiStandaloneLayoutOnIpc !== undefined ? pluginData.emojiStandaloneLayoutOnIpc : false
+    property bool emojiTrapTabNavigationOnIpc: pluginData.emojiTrapTabNavigationOnIpc !== undefined ? pluginData.emojiTrapTabNavigationOnIpc : true
+    property int emojiPopupWidth: pluginData.emojiPopupWidth !== undefined ? pluginData.emojiPopupWidth : 420
+    property int emojiPopupHeight: pluginData.emojiPopupHeight !== undefined ? pluginData.emojiPopupHeight : 520
+    property bool emojiHideRecentsWhileSearching: pluginData.emojiHideRecentsWhileSearching !== undefined ? pluginData.emojiHideRecentsWhileSearching : false
+    property int emojiTileSize: pluginData.emojiTileSize !== undefined ? pluginData.emojiTileSize : 38
+    property int emojiTileGap: pluginData.emojiTileGap !== undefined ? pluginData.emojiTileGap : Theme.spacingXS
     property bool showCloseButton: pluginData.showCloseButton !== undefined ? pluginData.showCloseButton : true
     property bool fullscreenMode: pluginData.fullscreenMode !== undefined ? pluginData.fullscreenMode : true
     property int panelWidth: pluginData.panelWidth !== undefined ? pluginData.panelWidth : 1450
@@ -70,12 +78,18 @@ PluginComponent {
     function isPanelOpen(screen) {
         const resolved = resolveScreen(screen);
         const key = screenKey(resolved);
-        return panelByName[key] ? panelByName[key].visible : false;
+        return (panelByName[key] ? panelByName[key].visible : false) || (emojiPopupByName[key] ? emojiPopupByName[key].visible : false);
     }
 
-    function setPanelVisible(screen, visible) {
+    function setPanelVisible(screen, visible, preserveEmojiLaunch) {
         const resolved = resolveScreen(screen);
         const key = screenKey(resolved);
+        const keepEmojiLaunch = preserveEmojiLaunch === true;
+        const standaloneEmoji = visible && keepEmojiLaunch && root.emojiStandaloneLayoutOnIpc;
+        if (visible && !keepEmojiLaunch)
+            ClipboardPlusState.mainInstance?.clearEmojiLaunchRequest();
+        if (!visible)
+            ClipboardPlusState.mainInstance?.clearEmojiLaunchRequest();
         if (visible) {
             // Close other panels when opening on a new screen
             for (const name in panelByName) {
@@ -83,10 +97,25 @@ PluginComponent {
                     panelByName[name].setOpen(false);
                 }
             }
+            for (const name in emojiPopupByName) {
+                if (name !== key && emojiPopupByName[name]) {
+                    emojiPopupByName[name].setOpen(false);
+                }
+            }
         }
         const panel = panelByName[key];
-        if (panel) {
-            panel.setOpen(visible);
+        const emojiPopup = emojiPopupByName[key];
+        if (!visible) {
+            panel?.setOpen(false);
+            emojiPopup?.setOpen(false);
+            return;
+        }
+        if (standaloneEmoji) {
+            panel?.setOpen(false);
+            emojiPopup?.setOpen(true);
+        } else {
+            emojiPopup?.setOpen(false);
+            panel?.setOpen(true);
         }
     }
 
@@ -128,16 +157,16 @@ PluginComponent {
                 callback(screen);
         }
 
-        function openPanel(screen) {
-            root.setPanelVisible(screen, true);
+        function openPanel(screen, preserveEmojiLaunch) {
+            root.setPanelVisible(screen, true, preserveEmojiLaunch);
         }
 
         function closePanel(screen) {
             root.setPanelVisible(screen, false);
         }
 
-        function togglePanel(screen) {
-            root.setPanelVisible(screen, !root.isPanelOpen(screen));
+        function togglePanel(screen, preserveEmojiLaunch) {
+            root.setPanelVisible(screen, !root.isPanelOpen(screen), preserveEmojiLaunch);
         }
     }
 
@@ -146,6 +175,14 @@ PluginComponent {
         property bool pincardsEnabled: root.pincardsEnabled
         property bool notecardsEnabled: root.notecardsEnabled
         property bool todoEnabled: root.todoEnabled
+        property bool emojiUnicodeEnabled: root.emojiUnicodeEnabled
+        property bool emojiStandaloneLayoutOnIpc: root.emojiStandaloneLayoutOnIpc
+        property bool emojiTrapTabNavigationOnIpc: root.emojiTrapTabNavigationOnIpc
+        property int emojiPopupWidth: root.emojiPopupWidth
+        property int emojiPopupHeight: root.emojiPopupHeight
+        property bool emojiHideRecentsWhileSearching: root.emojiHideRecentsWhileSearching
+        property int emojiTileSize: root.emojiTileSize
+        property int emojiTileGap: root.emojiTileGap
         property bool showCloseButton: root.showCloseButton
         property bool fullscreenMode: root.fullscreenMode
         property int panelWidth: root.panelWidth
@@ -181,6 +218,7 @@ PluginComponent {
     }
 
     property var panelByName: ({})
+    property var emojiPopupByName: ({})
 
     Main {
         id: main
@@ -309,6 +347,32 @@ PluginComponent {
                 pluginApi: clipboardPlusApi
                 screen: panelWindow.screen
                 panelOpen: panelWindow.open
+            }
+        }
+    }
+
+    Instantiator {
+        model: Quickshell.screens
+
+        delegate: EmojiPopup {
+            id: emojiPopupWindow
+            required property var modelData
+
+            screen: modelData
+            pluginApi: clipboardPlusApi
+
+            Component.onCompleted: {
+                const key = screen?.name || "default";
+                emojiPopupByName[key] = emojiPopupWindow;
+            }
+
+            Component.onDestruction: {
+                const key = screen?.name || "default";
+                if (emojiPopupByName[key] === emojiPopupWindow) {
+                    const copy = Object.assign({}, emojiPopupByName);
+                    delete copy[key];
+                    emojiPopupByName = copy;
+                }
             }
         }
     }

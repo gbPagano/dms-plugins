@@ -4,6 +4,11 @@ Advanced clipboard manager for DMS with clipboard history, pinned items, notes, 
 
 Ported / inspired from [clipper in noctalia-shell](https://noctalia.dev/plugins/clipper/) by [blackbartblues](https://github.com/blackbartblues).
 
+## Attribution
+
+- Original design and concept by [blackbartblues](https://github.com/blackbartblues).
+- Code for the Emoji picker feature is taken from [dms-emoji-launcher](https://github.com/devnullvoid/dms-emoji-launcher) by [devnullvoid](https://github.com/devnullvoid).
+
 ## Features
 
 - Clipboard
@@ -29,6 +34,9 @@ Because this is a widget plugin. You will need to at this plugin into the widget
 dms ipc call clipboardPlus openPanel
 dms ipc call clipboardPlus closePanel
 dms ipc call clipboardPlus togglePanel
+
+# Emoji picker
+dms ipc call clipboardPlus openEmojiPanel
 
 # Note cards
 dms ipc call clipboardPlus addNoteCard "Quick note"

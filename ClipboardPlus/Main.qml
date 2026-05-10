@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Common
 import qs.Services
+import "EmojiCatalog.js" as EmojiCatalogData
 
 Item {
     id: root
@@ -44,6 +45,15 @@ Item {
     property var todos: []
     property int todoRevision: 0
 
+    // ── Emoji & Unicode ──────────────────────────────────────────────────────
+    property var emojiCatalog: []
+    property var emojiCatalogById: ({})
+    property var emojiRecentIds: []
+    property var recentEmojiEntries: []
+    property int emojiRecentRevision: 0
+    property bool emojiLaunchRequested: false
+    property int emojiLaunchRevision: 0
+
     // ── Pending / selector state ───────────────────────────────────────────────
     property string pendingSelectedText: ""
     property string pendingNoteCardText: ""
@@ -74,6 +84,10 @@ Item {
     readonly property string exportBasePath: {
         const custom = pluginApi?.pluginSettings?.exportPath;
         return (custom && String(custom).trim().length > 0) ? custom : (Quickshell.env("HOME") + "/Documents");
+    }
+
+    function writeTextFile(path, text) {
+        Quickshell.execDetached(["bash", "-c", "printf '%s' \"$1\" > \"$2\"", "--", String(text ?? ""), String(path)]);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -154,6 +168,28 @@ Item {
         }
     }
 
+    FileView {
+        id: emojiRecentFile
+        path: clipboardPlusConfigDir + "/emoji-recents.json"
+        watchChanges: true
+        blockWrites: false
+        atomicWrites: true
+        printErrors: false
+        onLoaded: {
+            try {
+                const data = JSON.parse(text());
+                root.emojiRecentIds = Array.isArray(data.items) ? data.items.map(String) : [];
+            } catch (_) {
+                root.emojiRecentIds = [];
+            }
+            root.refreshRecentEmojiEntries();
+        }
+        onLoadFailed: {
+            root.emojiRecentIds = [];
+            root.refreshRecentEmojiEntries();
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // IPC HANDLER  (single handler, target: "clipboardPlus")
     // ══════════════════════════════════════════════════════════════════════════
@@ -201,22 +237,110 @@ Item {
         function addClipboardToNoteCard() {
             root.fetchTextThen("clipboard", t => root.showSelector("notecard", t));
         }
+
+        function openEmojiPanel() {
+            root.ipcOpenEmojiPanel();
+        }
     }
 
     function ipcOpenPanel() {
+        root.clearEmojiLaunchRequest();
         pluginApi?.withCurrentScreen(screen => pluginApi.openPanel(screen));
     }
     function ipcClosePanel() {
         pluginApi?.withCurrentScreen(screen => pluginApi.closePanel(screen));
     }
     function ipcTogglePanel() {
+        root.clearEmojiLaunchRequest();
         pluginApi?.withCurrentScreen(screen => pluginApi.togglePanel(screen));
+    }
+    function ipcOpenEmojiPanel() {
+        root.emojiLaunchRequested = true;
+        root.emojiLaunchRevision++;
+        pluginApi?.withCurrentScreen(screen => pluginApi.openPanel(screen, true));
+    }
+    function clearEmojiLaunchRequest() {
+        root.emojiLaunchRequested = false;
     }
 
     function clipboardHistoryCommand(width) {
         if (root.useBuiltInDmsClipboard)
             return ["dms", "cl", "history", "--json"];
         return ["cliphist", "list", "-preview-width", String(width)];
+    }
+
+    function buildEmojiCatalog() {
+        const catalog = [];
+        const byId = {};
+
+        function pushEntries(entries, field, type) {
+            const list = Array.isArray(entries) ? entries : [];
+            for (let i = 0; i < list.length; i++) {
+                const item = list[i];
+                const glyph = item ? String(item[field] || "") : "";
+                if (!glyph)
+                    continue;
+                const id = type + ":" + glyph;
+                const entry = {
+                    id: id,
+                    glyph: glyph,
+                    name: String(item.name || glyph),
+                    keywords: Array.isArray(item.keywords) ? item.keywords.map(k => String(k).toLowerCase()) : [],
+                    type: type
+                };
+                catalog.push(entry);
+                byId[id] = entry;
+            }
+        }
+
+        pushEntries(EmojiCatalogData.getEmojiEntries(), "emoji", "emoji");
+        pushEntries(EmojiCatalogData.getUnicodeEntries(), "char", "unicode");
+        pushEntries(EmojiCatalogData.getLatinExtendedEntries(), "char", "latin");
+        pushEntries(EmojiCatalogData.getNerdFontEntries(), "char", "nerdfont");
+
+        root.emojiCatalog = catalog;
+        root.emojiCatalogById = byId;
+        root.refreshRecentEmojiEntries();
+    }
+
+    function refreshRecentEmojiEntries() {
+        const byId = root.emojiCatalogById || {};
+        const entries = [];
+        const seen = {};
+        const ids = Array.isArray(root.emojiRecentIds) ? root.emojiRecentIds : [];
+        for (let i = 0; i < ids.length; i++) {
+            const id = String(ids[i]);
+            if (seen[id] || !byId[id])
+                continue;
+            seen[id] = true;
+            entries.push(byId[id]);
+        }
+        root.recentEmojiEntries = entries;
+        root.emojiRecentRevision++;
+    }
+
+    function saveEmojiRecentFile() {
+        emojiRecentFile.setText(JSON.stringify({
+            items: root.emojiRecentIds.slice(0, 40)
+        }, null, 2));
+    }
+
+    function recordRecentEmoji(entry) {
+        if (!entry || !entry.id)
+            return;
+        const id = String(entry.id);
+        const next = [id];
+        const current = Array.isArray(root.emojiRecentIds) ? root.emojiRecentIds : [];
+        for (let i = 0; i < current.length; i++) {
+            const existing = String(current[i]);
+            if (existing !== id)
+                next.push(existing);
+            if (next.length >= 40)
+                break;
+        }
+        root.emojiRecentIds = next;
+        root.refreshRecentEmojiEntries();
+        root.saveEmojiRecentFile();
     }
 
     function clipboardHeadCommand() {
@@ -994,11 +1118,11 @@ Item {
     }
 
     function savePinnedFile() {
-        const base64 = Qt.btoa(JSON.stringify({
+        const payload = JSON.stringify({
             items: root.pinnedItems
-        }, null, 2));
+        }, null, 2);
         const filePath = clipboardPlusConfigDir + "/pinned.json";
-        Quickshell.execDetached(["sh", "-c", `echo "${base64}" | base64 -d > "${filePath}"`]);
+        root.writeTextFile(filePath, payload);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -1154,7 +1278,7 @@ Item {
         Quickshell.execDetached(["mkdir", "-p", root.exportBasePath]);
         const title = (note.title || "").trim();
         const exportText = title.length > 0 ? (title + "\n---\n" + (note.content || "")) : (note.content || "");
-        Quickshell.execDetached(["sh", "-c", `echo "${Qt.btoa(exportText)}" | base64 -d > "${filePath}"`]);
+        root.writeTextFile(filePath, exportText);
         root.updateNoteCard(noteId, {
             exportedFiles: [...(note.exportedFiles || []), fileName]
         });
@@ -1195,7 +1319,7 @@ Item {
         if (!note)
             return;
         const filePath = root.noteCardsDir + "/" + getNoteFilename(note);
-        Quickshell.execDetached(["sh", "-c", `echo "${Qt.btoa(JSON.stringify(note, null, 2))}" | base64 -d > "${filePath}"`]);
+        root.writeTextFile(filePath, JSON.stringify(note, null, 2));
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -1529,9 +1653,12 @@ Item {
 
         // Create empty pinned.json if missing
         Quickshell.execDetached(["sh", "-c", `[ -f "${clipboardPlusConfigDir}/pinned.json" ] || echo '{"items":[]}' > "${clipboardPlusConfigDir}/pinned.json"`]);
+        Quickshell.execDetached(["sh", "-c", `[ -f "${clipboardPlusConfigDir}/emoji-recents.json" ] || echo '{"items":[]}' > "${clipboardPlusConfigDir}/emoji-recents.json"`]);
 
+        buildEmojiCatalog();
         pinnedFile.reload();
         todoFile.reload();
+        emojiRecentFile.reload();
         loadNoteCards();
         list();
     }
