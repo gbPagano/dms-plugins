@@ -52,9 +52,12 @@ dms ipc call clipboardPlus addClipboardToNoteCard
 
 Example in niri
 
-```bash
+```kdl
     Mod+V hotkey-overlay-title="Clipboard Manager" {
         spawn-sh "dms ipc call clipboardPlus togglePanel"
+    }
+    Mod+Period { 
+        spawn-sh "dms ipc call clipboardPlus openEmojiPanel"; 
     }
     Mod+Shift+V hotkey-overlay-title="Add to note card" {
         spawn-sh "dms ipc call clipboardPlus addClipboardToNoteCard"
@@ -88,6 +91,8 @@ Sending close / toggle command from IPC wont close ClipBoard+ that is opened fro
 ![ClipboardPlus - Preview 1](preview/preview-blur.png)
 
 ![ClipboardPlus - Preview 2](preview/preview-noblur.png)
+
+![ClipboardPlus - Emoji Popout](preview/emoji-popout.png)
 
 ![ClipboardPlus - Setting 1](preview/setting-1.png)
 
