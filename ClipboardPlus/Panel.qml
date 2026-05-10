@@ -42,7 +42,7 @@ Item {
         if (panelOpen) {
             Qt.callLater(() => focusClipboardList());
             pluginApi?.mainInstance?.refreshOnPanelOpen();
-            if (pluginApi?.mainInstance && !pluginApi.mainInstance.noteCardsLoaded) {
+            if (pluginApi?.mainInstance) {
                 pluginApi.mainInstance.loadNoteCards();
             }
             if (pluginApi?.mainInstance) {
@@ -82,7 +82,7 @@ Item {
         if (visible) {
             Qt.callLater(() => focusClipboardList());
             pluginApi?.mainInstance?.refreshOnPanelOpen();
-            if (pluginApi?.mainInstance && !pluginApi.mainInstance.noteCardsLoaded) {
+            if (pluginApi?.mainInstance) {
                 pluginApi.mainInstance.loadNoteCards();
             }
             if (pluginApi?.mainInstance) {

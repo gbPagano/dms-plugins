@@ -37,6 +37,10 @@ Rectangle {
         localPrivate = note && note.isPrivate === true;
         storedWidth = note && note.width ? note.width : 350;
         storedHeight = note && note.height ? note.height : 280;
+        if (titleInput && titleInput.text !== (note?.title || ""))
+            titleInput.text = note?.title || "";
+        if (textArea && textArea.text !== (note?.content || ""))
+            textArea.text = note?.content || "";
     }
 
     // Color schemes
