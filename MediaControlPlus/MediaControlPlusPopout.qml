@@ -542,7 +542,7 @@ PopoutComponent {
                                 onClicked: root.togglePlayback()
                             }
 
-                            ElevationShadow {
+                            CompatElevationShadow {
                                 anchors.fill: parent
                                 z: -1
                                 level: Theme.elevationLevel1
