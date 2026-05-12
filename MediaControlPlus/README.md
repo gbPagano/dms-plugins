@@ -38,7 +38,9 @@ dms ipc call mediaControlPlus togglePopout
 
 ![media control plus - dotted 2](preview/dotted-style-2.png)
 
-![media control plus - Preview Vertical](preview/vertical.png)
+![media control plus - Preview Vertical 1](preview/vertical.png)
+
+![media control plus - Preview Vertical 2](preview/vertical-2.png)
 
 ![media control plus - Preview Horizontal](preview/horizontal.png)
 
