@@ -16,6 +16,7 @@ PluginComponent {
     property bool notecardsEnabled: pluginData.notecardsEnabled !== undefined ? pluginData.notecardsEnabled : true
     property bool todoEnabled: pluginData.todoEnabled !== undefined ? pluginData.todoEnabled : true
     property bool emojiUnicodeEnabled: pluginData.emojiUnicodeEnabled !== undefined ? pluginData.emojiUnicodeEnabled : true
+    property bool emojiShowInPanel: pluginData.emojiShowInPanel !== undefined ? pluginData.emojiShowInPanel : true
     property bool emojiStandaloneLayoutOnIpc: pluginData.emojiStandaloneLayoutOnIpc !== undefined ? pluginData.emojiStandaloneLayoutOnIpc : false
     property bool emojiTrapTabNavigationOnIpc: pluginData.emojiTrapTabNavigationOnIpc !== undefined ? pluginData.emojiTrapTabNavigationOnIpc : true
     property int emojiPopupWidth: pluginData.emojiPopupWidth !== undefined ? pluginData.emojiPopupWidth : 420
@@ -176,6 +177,7 @@ PluginComponent {
         property bool notecardsEnabled: root.notecardsEnabled
         property bool todoEnabled: root.todoEnabled
         property bool emojiUnicodeEnabled: root.emojiUnicodeEnabled
+        property bool emojiShowInPanel: root.emojiShowInPanel
         property bool emojiStandaloneLayoutOnIpc: root.emojiStandaloneLayoutOnIpc
         property bool emojiTrapTabNavigationOnIpc: root.emojiTrapTabNavigationOnIpc
         property int emojiPopupWidth: root.emojiPopupWidth

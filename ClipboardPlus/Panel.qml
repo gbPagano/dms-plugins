@@ -108,7 +108,7 @@ Item {
             if (!root.visible)
                 return;
             Qt.callLater(() => {
-                const selector = root.emojiStandaloneLaunch ? emojiStandaloneSelector : emojiSelector;
+                const selector = root.emojiStandaloneLaunch ? emojiStandaloneSelector : root.embeddedEmojiSelector;
                 if (selector && typeof selector.focusSearchField === "function")
                     selector.focusSearchField();
             });
@@ -146,6 +146,7 @@ Item {
     property int categoryIndex: 0
     property bool emojiStandaloneLaunch: !!(pluginApi?.mainInstance?.emojiLaunchRequested && ((pluginApi?.pluginSettings?.emojiStandaloneLayoutOnIpc ?? false) || !(pluginApi?.pluginSettings?.emojiUnicodeEnabled ?? true)))
     property bool emojiTabTrapActive: !!(pluginApi?.mainInstance?.emojiLaunchRequested && (pluginApi?.pluginSettings?.emojiTrapTabNavigationOnIpc ?? true))
+    readonly property var embeddedEmojiSelector: emojiSelectorLoader.item || null
 
     function categoryButtons() {
         const buttons = [btnAll, btnText, btnImage, btnColorFilter, btnLink, btnCode, btnEmoji, btnFile];
@@ -302,7 +303,7 @@ Item {
 
     function tabTargets() {
         if (emojiTabTrapActive || emojiStandaloneLaunch) {
-            const selector = emojiStandaloneLaunch ? emojiStandaloneSelector : emojiSelector;
+            const selector = emojiStandaloneLaunch ? emojiStandaloneSelector : root.embeddedEmojiSelector;
             const emojiTargets = [];
             if (selector?.searchFieldItem)
                 emojiTargets.push(selector.searchFieldItem);
@@ -1863,7 +1864,7 @@ Item {
             id: pinnedPanel
             property bool showPinned: pluginApi?.pluginSettings?.pincardsEnabled ?? true
             property bool showTodo: pluginApi?.pluginSettings?.todoEnabled ?? true
-            property bool showEmoji: pluginApi?.pluginSettings?.emojiUnicodeEnabled ?? true
+            property bool showEmoji: (pluginApi?.pluginSettings?.emojiUnicodeEnabled ?? true) && (pluginApi?.pluginSettings?.emojiShowInPanel ?? true)
             visible: !root.emojiStandaloneLaunch && (showPinned || showTodo || showEmoji)
             anchors.left: parent.left
             anchors.top: parent.top
@@ -2341,8 +2342,8 @@ Item {
                                 event.accepted = true;
                             }
                             onActiveFocusChanged: {
-                                if (activeFocus && emojiSelector && typeof emojiSelector.focusSearchField === "function")
-                                    emojiSelector.focusSearchField();
+                                if (activeFocus && root.embeddedEmojiSelector && typeof root.embeddedEmojiSelector.focusSearchField === "function")
+                                    root.embeddedEmojiSelector.focusSearchField();
                             }
 
                             Rectangle {
@@ -2361,17 +2362,27 @@ Item {
                                 }
                             }
 
-                            EmojiUnicodePanel {
-                                id: emojiSelector
+                            Loader {
+                                id: emojiSelectorLoader
                                 anchors.fill: parent
-                                pluginApi: root.pluginApi
-                                screen: root.currentScreen
-                                standaloneMode: false
-                                trapTabNavigation: root.emojiTabTrapActive
-                                compactSidebarMode: pinnedPanel.showPinned && pinnedPanel.showTodo && pinnedPanel.showEmoji
-                                focusSearchOnOpen: root.visible && !!root.pluginApi?.mainInstance?.emojiLaunchRequested
-                                onTabForwardRequested: root.advanceTab()
-                                onTabBackwardRequested: root.reverseTab()
+                                active: root.visible && pinnedPanel.showEmoji
+                                asynchronous: true
+                                onLoaded: {
+                                    if (item && (emojiFocus.activeFocus || !!root.pluginApi?.mainInstance?.emojiLaunchRequested))
+                                        Qt.callLater(() => item.focusSearchField());
+                                }
+
+                                sourceComponent: EmojiUnicodePanel {
+                                    pluginApi: root.pluginApi
+                                    screen: root.currentScreen
+                                    active: root.visible
+                                    standaloneMode: false
+                                    trapTabNavigation: root.emojiTabTrapActive
+                                    compactSidebarMode: pinnedPanel.showPinned && pinnedPanel.showTodo && pinnedPanel.showEmoji
+                                    focusSearchOnOpen: root.visible && !!root.pluginApi?.mainInstance?.emojiLaunchRequested
+                                    onTabForwardRequested: root.advanceTab()
+                                    onTabBackwardRequested: root.reverseTab()
+                                }
                             }
                         }
                     }

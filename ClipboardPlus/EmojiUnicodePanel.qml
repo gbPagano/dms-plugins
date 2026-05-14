@@ -9,6 +9,7 @@ FocusScope {
 
     property var pluginApi: null
     property var screen: null
+    property bool active: true
     property bool standaloneMode: false
     property bool focusSearchOnOpen: false
     property bool trapTabNavigation: false
@@ -111,9 +112,26 @@ FocusScope {
     }
 
     function rebuildResults() {
-        const source = Array.isArray(catalogEntries) ? catalogEntries.slice() : [];
-        const query = searchText;
+        if (!root.active) {
+            filteredEntries = [];
+            resultsGrid.currentIndex = -1;
+            return;
+        }
+
+        const source = Array.isArray(catalogEntries) ? catalogEntries : [];
+        const query = String(searchText || "");
         const tokens = tokenize(query);
+
+        if (!tokens.length) {
+            filteredEntries = Array.isArray(catalogEntries) ? catalogEntries : [];
+            if (filteredEntries.length === 0) {
+                resultsGrid.currentIndex = -1;
+            } else if (resultsGrid.currentIndex < 0 || resultsGrid.currentIndex >= filteredEntries.length) {
+                resultsGrid.currentIndex = 0;
+            }
+            return;
+        }
+
         const dedupe = {};
         const matches = [];
 
@@ -178,6 +196,7 @@ FocusScope {
         if (focusSearchOnOpen)
             Qt.callLater(focusSearchField);
     }
+    onActiveChanged: rebuildResults()
     onCatalogEntriesChanged: rebuildResults()
     onRecentEntriesChanged: rebuildResults()
     onSearchTextChanged: rebuildResults()

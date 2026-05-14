@@ -886,7 +886,7 @@ PluginSettings {
             ToggleSetting {
                 settingKey: "emojiUnicodeEnabled"
                 label: "Enable Emoji & Unicode"
-                description: "Show the emoji and unicode selector as the last section in the left panel"
+                description: "Enable the emoji and unicode selector feature, including the IPC launcher"
                 defaultValue: true
             }
 
@@ -939,9 +939,16 @@ PluginSettings {
             }
 
             ToggleSetting {
+                settingKey: "emojiShowInPanel"
+                label: "Show Emoji In Main Panel"
+                description: "Embed the emoji selector in the ClipboardPlus side panel. Turn this off if you only want the emoji IPC/popout behavior"
+                defaultValue: true
+            }
+
+            ToggleSetting {
                 settingKey: "emojiTrapTabNavigationOnIpc"
                 label: "Trap Tab Navigation On Emoji IPC Call"
-                description: "When opened specifically for emoji selection, move Tab focus only between the search field and emoji list"
+                description: "When opened specifically for emoji selection through the IPC, move Tab focus only between the search field and emoji list"
                 defaultValue: true
             }
 
