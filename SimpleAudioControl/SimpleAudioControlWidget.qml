@@ -123,6 +123,73 @@ PluginComponent {
         return props["application.icon-name"] || props["application.icon_name"] || "";
     }
 
+    function normalizedIconCandidates(node) {
+        if (!node)
+            return [];
+
+        const props = node.properties || {};
+        const rawCandidates = [
+            props["application.icon-name"],
+            props["application.icon_name"],
+            props["application.id"],
+            props["application.name"],
+            props["application.process.binary"],
+            props["binary"],
+            props["media.name"],
+            node.name
+        ];
+
+        const candidates = [];
+        const seen = {};
+
+        function pushCandidate(value) {
+            if (!value)
+                return;
+
+            const trimmed = String(value).trim();
+            if (!trimmed)
+                return;
+
+            const variants = [
+                trimmed,
+                trimmed.toLowerCase(),
+                trimmed.replace(/\.desktop$/i, ""),
+                trimmed.replace(/\.desktop$/i, "").toLowerCase(),
+                trimmed.replace(/\.bin$/i, ""),
+                trimmed.replace(/\.bin$/i, "").toLowerCase(),
+                trimmed.replace(/-bin$/i, ""),
+                trimmed.replace(/-bin$/i, "").toLowerCase(),
+                trimmed.replace(/\.[^/.]+$/, ""),
+                trimmed.replace(/\.[^/.]+$/, "").toLowerCase(),
+                trimmed.split("/").pop(),
+                trimmed.split("/").pop()?.toLowerCase()
+            ];
+
+            for (let i = 0; i < variants.length; ++i) {
+                const candidate = variants[i];
+                if (!candidate || seen[candidate])
+                    continue;
+                seen[candidate] = true;
+                candidates.push(candidate);
+            }
+        }
+
+        for (let i = 0; i < rawCandidates.length; ++i)
+            pushCandidate(rawCandidates[i]);
+
+        return candidates;
+    }
+
+    function getStreamAppIconSource(node) {
+        const candidates = normalizedIconCandidates(node);
+        for (let i = 0; i < candidates.length; ++i) {
+            const resolved = Paths.resolveIconPath(candidates[i]);
+            if (resolved)
+                return resolved;
+        }
+        return "";
+    }
+
     function getStreamFallbackIcon(node) {
         if (!node)
             return "graphic_eq";
@@ -821,13 +888,7 @@ PluginComponent {
                                                 Image {
                                                     id: appIconImage
                                                     anchors.fill: parent
-                                                    source: {
-                                                        const iconName = root.getStreamAppIconName(modelData);
-                                                        if (!iconName)
-                                                            return "";
-                                                        // Try freedesktop icon theme paths
-                                                        return "image://icon/" + iconName;
-                                                    }
+                                                    source: root.getStreamAppIconSource(modelData)
                                                     sourceSize.width: 20
                                                     sourceSize.height: 20
                                                     visible: status === Image.Ready
