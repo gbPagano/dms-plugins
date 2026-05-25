@@ -5,9 +5,24 @@ My own collections of DMS plugins.
 ## List of plugins
 
 - [SimpleAudioControl](SimpleAudioControl/README.md)
+  
+  ![Preview](./SimpleAudioControl/preview/widget.png)
+
 - [NetbirdStatus](NetbirdStatus/README.md)
+  
+  ![Preview](./NetbirdStatus/preview/widget.png)
+
 - [ClipBoard+](ClipboardPlus/README.md)
+
+  ![Preview](./ClipboardPlus/preview/preview-blur.png)
+
 - [MediaControlPlus](MediaControlPlus/README.md)
+
+  ![Preview](./MediaControlPlus/preview/vertical.png)
+
+- [SystemMonitorPlus](SystemMonitorPlus/README.md)
+
+  ![Preview](./SystemMonitorPlus/preview/preview.png)
 
 ## Install
 

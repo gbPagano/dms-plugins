@@ -1,0 +1,14 @@
+{
+  "id": "systemMonitorPlus",
+  "name": "System Monitor Plus",
+  "description": "A unified DMS system monitor widget with customizable visual and resource showing capabilities.",
+  "version": "1.0.0",
+  "author": "Dadangdut33",
+  "icon": "monitoring",
+  "type": "widget",
+  "component": "./SystemMonitorPlusWidget.qml",
+  "settings": "./SystemMonitorPlusSettings.qml",
+  "capabilities": ["dankbar-widget"],
+  "permissions": ["settings_read", "settings_write"],
+  "requires_dms": ">=1.2.0"
+}
