@@ -2,6 +2,11 @@
 
 A simple extended version of the default media widget from DMS with mainly improved support for vertical layouts while also adding more control over the widgets.
 
+## Optional Dependencies
+
+- [ffmpeg](https://ffmpeg.org/) (getting thumbnail art for local audio files)
+- [ffmpegthumbnailer](https://github.com/dirkvdb/ffmpegthumbnailer) (getting thumbnail art for local video files)
+
 ## Features
 
 - Improved Vertical layout settings

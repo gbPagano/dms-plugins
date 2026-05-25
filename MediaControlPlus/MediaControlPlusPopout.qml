@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Services.Mpris
 import qs.Common
 import qs.Services
@@ -23,6 +24,10 @@ PopoutComponent {
     property bool volumePanelDragging: false
     property int dropdownType: 0
     property real previousVolume: 0.5
+    property bool ffmpegChecked: false
+    property bool ffmpegAvailable: false
+    property bool ffmpegthumbnailerChecked: false
+    property bool ffmpegthumbnailerAvailable: false
     readonly property real sideRailWidth: 56
     readonly property real sideRailGap: Theme.spacingM
     readonly property real contentSideInset: sideRailWidth + sideRailGap
@@ -44,7 +49,10 @@ PopoutComponent {
     readonly property bool noneAvailable: playerCount === 0
     readonly property bool trulyIdle: activePlayer && activePlayer.playbackState === MprisPlaybackState.Stopped && !activePlayer.trackTitle && !activePlayer.trackArtist
     readonly property bool showNoPlayerNow: noneAvailable || trulyIdle || !activePlayer
-    readonly property bool hasArtwork: !showNoPlayerNow && !!(activePlayer && activePlayer.trackArtUrl && String(activePlayer.trackArtUrl).trim().length > 0)
+    property string localFallbackArtworkUrl: ""
+    property string pendingLocalMediaUrl: ""
+    readonly property string effectiveArtworkUrl: root.resolveArtworkUrl()
+    readonly property bool hasArtwork: !showNoPlayerNow && effectiveArtworkUrl.length > 0
     readonly property bool isChromePlayer: {
         if (!activePlayer?.identity)
             return false;
@@ -58,7 +66,17 @@ PopoutComponent {
     headerText: "Media"
     showCloseButton: true
 
-    Component.onCompleted: root.popoutOpened()
+    Component.onCompleted: {
+        root.popoutOpened();
+        Proc.runCommand("media-control-plus-check-ffmpeg", ["sh", "-c", "command -v ffmpeg >/dev/null 2>&1"], (output, exitCode) => {
+            root.ffmpegChecked = true;
+            root.ffmpegAvailable = exitCode === 0;
+        });
+        Proc.runCommand("media-control-plus-check-ffmpegthumbnailer", ["sh", "-c", "command -v ffmpegthumbnailer >/dev/null 2>&1"], (output, exitCode) => {
+            root.ffmpegthumbnailerChecked = true;
+            root.ffmpegthumbnailerAvailable = exitCode === 0;
+        });
+    }
     Component.onDestruction: root.popoutClosed()
 
     DankTooltipV2 {
@@ -80,6 +98,173 @@ PopoutComponent {
         const minutes = Math.floor(total / 60);
         const seconds = total % 60;
         return minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+    }
+
+    function youtubeVideoIdFromUrl(url) {
+        const source = String(url || "").trim();
+        if (source.length === 0)
+            return "";
+
+        const hostMatch = source.match(/^https?:\/\/([^\/?#]+)/i);
+        if (!hostMatch)
+            return "";
+
+        const host = hostMatch[1].toLowerCase();
+        if (host === "youtu.be") {
+            const shortMatch = source.match(/^https?:\/\/(?:www\.)?youtu\.be\/([^?&#/]+)/i);
+            return shortMatch ? shortMatch[1] : "";
+        }
+
+        if (host !== "www.youtube.com" && host !== "youtube.com" && host !== "music.youtube.com")
+            return "";
+
+        let match = source.match(/^https?:\/\/(?:www\.|music\.)?youtube\.com\/shorts\/([^?&#/]+)/i);
+        if (match)
+            return match[1];
+
+        match = source.match(/^https?:\/\/(?:www\.|music\.)?youtube\.com\/embed\/([^?&#/]+)/i);
+        if (match)
+            return match[1];
+
+        match = source.match(/^https?:\/\/(?:www\.|music\.)?youtube\.com\/watch\?(.*)$/i);
+        if (!match)
+            return "";
+
+        const query = match[1].split("#")[0];
+        const params = query.split("&");
+        for (let i = 0; i < params.length; ++i) {
+            const parts = params[i].split("=");
+            if (parts[0] !== "v" || !parts[1])
+                continue;
+            return decodeURIComponent(parts[1]);
+        }
+        return "";
+    }
+
+    function directArtworkFallbackFromUrl(url) {
+        const youtubeId = youtubeVideoIdFromUrl(url);
+        if (youtubeId.length > 0)
+            return "https://i.ytimg.com/vi/" + youtubeId + "/hqdefault.jpg";
+        return "";
+    }
+
+    function normalizeFilePath(url) {
+        const source = String(url || "").trim();
+        if (source.length === 0)
+            return "";
+        if (!source.startsWith("file://"))
+            return "";
+        return decodeURIComponent(source.substring(7));
+    }
+
+    function isVideoFilePath(path) {
+        const lower = String(path || "").toLowerCase();
+        return lower.endsWith(".mp4")
+            || lower.endsWith(".mkv")
+            || lower.endsWith(".avi")
+            || lower.endsWith(".mov")
+            || lower.endsWith(".webm")
+            || lower.endsWith(".flv")
+            || lower.endsWith(".wmv")
+            || lower.endsWith(".m4v");
+    }
+
+    function isAudioFilePath(path) {
+        const lower = String(path || "").toLowerCase();
+        return lower.endsWith(".mp3")
+            || lower.endsWith(".flac")
+            || lower.endsWith(".ogg")
+            || lower.endsWith(".m4a")
+            || lower.endsWith(".aac")
+            || lower.endsWith(".wav")
+            || lower.endsWith(".opus")
+            || lower.endsWith(".wma")
+            || lower.endsWith(".oga");
+    }
+
+    function filePathToUrl(path) {
+        return path ? ("file://" + path.split("/").map(part => encodeURIComponent(part)).join("/")) : "";
+    }
+
+    function localThumbnailPathFor(mediaUrl) {
+        const filePath = normalizeFilePath(mediaUrl);
+        if (!filePath || (!isVideoFilePath(filePath) && !isAudioFilePath(filePath)))
+            return "";
+        return Paths.strip(Paths.xdgCache) + "/thumbnails/normal/" + Qt.md5("file://" + filePath) + ".png";
+    }
+
+    function refreshLocalFallbackArtwork() {
+        const artUrl = String(activePlayer?.trackArtUrl || "").trim();
+        const mediaUrl = String(activePlayer?.metadata?.["xesam:url"] || "").trim();
+
+        if (artUrl.length > 0 || mediaUrl.length === 0 || directArtworkFallbackFromUrl(mediaUrl).length > 0) {
+            pendingLocalMediaUrl = "";
+            localFallbackArtworkUrl = "";
+            return;
+        }
+
+        const thumbPath = localThumbnailPathFor(mediaUrl);
+        const filePath = normalizeFilePath(mediaUrl);
+        if (!thumbPath || !filePath) {
+            pendingLocalMediaUrl = "";
+            localFallbackArtworkUrl = "";
+            return;
+        }
+
+        if ((isVideoFilePath(filePath) && ffmpegthumbnailerChecked && !ffmpegthumbnailerAvailable)
+                || (isAudioFilePath(filePath) && ffmpegChecked && !ffmpegAvailable)) {
+            pendingLocalMediaUrl = "";
+            localFallbackArtworkUrl = "";
+            return;
+        }
+
+        if (pendingLocalMediaUrl === mediaUrl)
+            return;
+
+        pendingLocalMediaUrl = mediaUrl;
+        localFallbackArtworkUrl = "";
+
+        Paths.mkdir(Paths.strip(Paths.xdgCache) + "/thumbnails/normal");
+        Proc.runCommand("media-control-plus-local-thumb-check", ["test", "-f", thumbPath], (output, exitCode) => {
+            if (pendingLocalMediaUrl !== mediaUrl)
+                return;
+
+            if (exitCode === 0) {
+                localFallbackArtworkUrl = filePathToUrl(thumbPath);
+                return;
+            }
+
+            if (isVideoFilePath(filePath)) {
+                if (!ffmpegthumbnailerAvailable)
+                    return;
+                Proc.runCommand("media-control-plus-video-thumb-generate", ["ffmpegthumbnailer", "-i", filePath, "-o", thumbPath, "-s", "256", "-f"], (thumbOutput, thumbExitCode) => {
+                    if (pendingLocalMediaUrl !== mediaUrl)
+                        return;
+                    localFallbackArtworkUrl = thumbExitCode === 0 ? filePathToUrl(thumbPath) : "";
+                });
+                return;
+            }
+
+            if (!ffmpegAvailable)
+                return;
+            Proc.runCommand("media-control-plus-audio-art-extract", ["ffmpeg", "-loglevel", "error", "-y", "-i", filePath, "-an", "-frames:v", "1", thumbPath], (thumbOutput, thumbExitCode) => {
+                if (pendingLocalMediaUrl !== mediaUrl)
+                    return;
+                localFallbackArtworkUrl = thumbExitCode === 0 ? filePathToUrl(thumbPath) : "";
+            });
+        });
+    }
+
+    function resolveArtworkUrl() {
+        const artUrl = String(activePlayer?.trackArtUrl || "").trim();
+        if (artUrl.length > 0)
+            return artUrl;
+
+        const mediaUrl = String(activePlayer?.metadata?.["xesam:url"] || "").trim();
+        const directFallback = directArtworkFallbackFromUrl(mediaUrl);
+        if (directFallback.length > 0)
+            return directFallback;
+        return localFallbackArtworkUrl;
     }
 
     function getAudioDeviceIcon(device) {
@@ -171,6 +356,20 @@ PopoutComponent {
         }
     }
 
+    onActivePlayerChanged: refreshLocalFallbackArtwork()
+
+    Connections {
+        target: root.activePlayer
+
+        function onTrackChanged() {
+            root.refreshLocalFallbackArtwork();
+        }
+
+        function onTrackArtUrlChanged() {
+            root.refreshLocalFallbackArtwork();
+        }
+    }
+
     component MiniButton: Rectangle {
         id: buttonRoot
         property string iconName: ""
@@ -248,7 +447,7 @@ PopoutComponent {
                 Image {
                     id: artworkImage
                     anchors.fill: parent
-                    source: root.activePlayer ? root.activePlayer.trackArtUrl || "" : ""
+                    source: root.effectiveArtworkUrl
                     fillMode: Image.PreserveAspectCrop
                     visible: false
                     asynchronous: true
@@ -318,6 +517,7 @@ PopoutComponent {
                         DankAlbumArt {
                             anchors.fill: parent
                             activePlayer: root.activePlayer
+                            artUrl: root.effectiveArtworkUrl
                         }
                     }
                 }
