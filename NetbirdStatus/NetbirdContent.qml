@@ -95,7 +95,7 @@ Column {
             RowLayout {
                 id: compactStatusRow
                 width: parent.width
-                spacing: contentRoot.compactHeader ? Theme.spacingS : Theme.spacingM
+                spacing: contentRoot.compactHeader ? Theme.spacingM : Theme.spacingM
                 visible: contentRoot.widget.netbirdRunning
 
                 Row {
@@ -128,14 +128,26 @@ Column {
                     }
                 }
 
-                StyledText {
+                RowLayout {
                     visible: contentRoot.compactHeader && contentRoot.widget.netbirdFqdn !== ""
-                    text: contentRoot.widget.netbirdFqdn
-                    font.pixelSize: 12
-                    color: Theme.surfaceVariantText
-                    elide: Text.ElideRight
+                    spacing: 4
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignVCenter
+
+                    DankIcon {
+                        name: "language"
+                        size: 14
+                        color: Theme.surfaceVariantText
+                    }
+
+                    StyledText {
+                        text: contentRoot.widget.netbirdFqdn
+                        font.pixelSize: 12
+                        color: Theme.surfaceVariantText
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                    }
                 }
             }
         }

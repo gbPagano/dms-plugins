@@ -563,7 +563,7 @@ PluginComponent {
     ccWidgetIsActive: !_ccInitialCheck && root.netbirdRunning
     ccWidgetIsToggle: true
 
-    property real _ccContentHeight: 240
+    property real _ccContentHeight: 250
     ccDetailHeight: _ccContentHeight
 
     onCcWidgetToggled: root.toggleNetbird()
@@ -582,7 +582,7 @@ PluginComponent {
                 anchors.margins: Theme.spacingM
                 widget: root
                 compactHeader: true
-                peersListMaxHeight: 200
+                peersListMaxHeight: 130
             }
 
             Component.onCompleted: {

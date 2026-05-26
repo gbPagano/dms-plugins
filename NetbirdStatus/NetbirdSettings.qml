@@ -78,7 +78,7 @@ PluginSettings {
             }
 
             StyledText {
-                visible: root.pluginData["showPing"] === true
+                visible: root.loadValue("showPing", false) === true
                 width: parent.width
                 text: "⚠ This feature sends ICMP packets to each connected peer at every refresh interval. It may increase network usage and CPU load."
                 font.pixelSize: Theme.fontSizeSmall
