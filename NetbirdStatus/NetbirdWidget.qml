@@ -44,6 +44,35 @@ PluginComponent {
     property var peerList: []
     property bool managementConnected: false
     property bool signalConnected: false
+    property bool _stateRestored: false
+
+    onPluginDataChanged: {
+        if (_stateRestored) return
+        if (pluginData && pluginData.lastInstalled !== undefined) {
+            root.netbirdInstalled = pluginData.lastInstalled === true
+            root.netbirdRunning = pluginData.lastRunning === true
+            root.netbirdIp = pluginData.lastIp || ""
+            root.netbirdFqdn = pluginData.lastFqdn || ""
+            root.peerCount = pluginData.lastPeerCount || 0
+            root.peerConnected = pluginData.lastPeerConnected || 0
+            if (!root.netbirdInstalled) {
+                root.netbirdStatus = "Not installed"
+            } else {
+                root.netbirdStatus = root.netbirdRunning ? "Connected" : "Disconnected"
+            }
+            root._stateRestored = true
+        }
+    }
+
+    function _saveStateCache() {
+        if (!pluginService) return
+        pluginService.savePluginData("netbirdStatus", "lastInstalled", root.netbirdInstalled)
+        pluginService.savePluginData("netbirdStatus", "lastRunning", root.netbirdRunning)
+        pluginService.savePluginData("netbirdStatus", "lastIp", root.netbirdIp)
+        pluginService.savePluginData("netbirdStatus", "lastFqdn", root.netbirdFqdn)
+        pluginService.savePluginData("netbirdStatus", "lastPeerCount", root.peerCount)
+        pluginService.savePluginData("netbirdStatus", "lastPeerConnected", root.peerConnected)
+    }
 
     property var peerPings: ({})
     property var pingQueue: []
@@ -255,6 +284,8 @@ PluginComponent {
                 root.peerConnected = 0;
                 root.peerList = [];
             }
+            root._stateRestored = true;
+            root._saveStateCache();
         }
     }
 
@@ -340,6 +371,8 @@ PluginComponent {
             root.netbirdIp = "";
             root.netbirdStatus = "Not installed";
             root.peerCount = 0;
+            root._stateRestored = true;
+            root._saveStateCache();
             return;
         }
 
@@ -487,9 +520,12 @@ PluginComponent {
     }
 
     // ── Control Center Tile ──
-    ccWidgetIcon: root.netbirdRunning ? "vpn_lock" : "vpn_key_off"
+    readonly property bool _ccInitialCheck: root.netbirdStatus === "Checking..."
+
+    ccWidgetIcon: _ccInitialCheck ? "sync" : (root.netbirdRunning ? "vpn_lock" : "vpn_key_off")
     ccWidgetPrimaryText: "NetBird"
     ccWidgetSecondaryText: {
+        if (_ccInitialCheck) return "Checking..."
         if (!root.netbirdInstalled) return "Not installed"
         if (root.netbirdRunning) {
             if (root.netbirdIp !== "") return root.netbirdIp
@@ -497,7 +533,7 @@ PluginComponent {
         }
         return root.netbirdStatus
     }
-    ccWidgetIsActive: root.netbirdRunning
+    ccWidgetIsActive: !_ccInitialCheck && root.netbirdRunning
     ccWidgetIsToggle: true
 
     property real _ccContentHeight: 240
