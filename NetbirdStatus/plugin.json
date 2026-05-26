@@ -8,7 +8,7 @@
   "type": "widget",
   "component": "./NetbirdWidget.qml",
   "settings": "./NetbirdSettings.qml",
-  "capabilities": ["dankbar-widget"],
+  "capabilities": ["dankbar-widget", "control-center"],
   "permissions": ["settings_read", "settings_write"],
   "requires_dms": ">=1.2.0"
 }

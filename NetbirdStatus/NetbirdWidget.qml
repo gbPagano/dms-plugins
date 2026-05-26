@@ -485,6 +485,47 @@ PluginComponent {
         }
     }
 
+    // ── Control Center Tile ──
+    ccWidgetIcon: root.netbirdRunning ? "vpn_lock" : "vpn_key_off"
+    ccWidgetPrimaryText: "NetBird"
+    ccWidgetSecondaryText: {
+        if (!root.netbirdInstalled) return "Not installed"
+        if (root.netbirdRunning) {
+            if (root.netbirdIp !== "") return root.netbirdIp
+            return root.peerConnected + "/" + root.peerCount + " peers"
+        }
+        return root.netbirdStatus
+    }
+    ccWidgetIsActive: root.netbirdRunning
+    ccWidgetIsToggle: true
+
+    property real _ccContentHeight: 240
+    ccDetailHeight: _ccContentHeight
+
+    onCcWidgetToggled: root.toggleNetbird()
+
+    ccDetailContent: Component {
+        Rectangle {
+            id: ccDetailRoot
+            radius: Theme.cornerRadius
+            color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
+
+            NetbirdContent {
+                id: ccDetailCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Theme.spacingM
+                widget: root
+                peersListMaxHeight: 200
+            }
+
+            Component.onCompleted: {
+                root._ccContentHeight = Qt.binding(() => ccDetailCol.implicitHeight + Theme.spacingM * 2)
+            }
+        }
+    }
+
     // ── Popout Content ──
     popoutContent: Component {
         PopoutComponent {
@@ -492,383 +533,9 @@ PluginComponent {
             headerText: "NetBird"
             showCloseButton: true
 
-            Column {
+            NetbirdContent {
                 width: parent.width
-                spacing: Theme.spacingM
-
-                // Header / Status Card
-                StyledRect {
-                    width: parent.width
-                    height: statusCol.implicitHeight + Theme.spacingL * 2
-                    radius: Theme.cornerRadius
-                    color: Theme.surfaceContainerHigh
-
-                    Column {
-                        id: statusCol
-                        anchors.fill: parent
-                        anchors.margins: Theme.spacingL
-                        spacing: Theme.spacingS
-
-                        Row {
-                            width: parent.width
-                            spacing: Theme.spacingM
-
-                            NetBirdIcon {
-                                size: 32
-                                color: root.netbirdRunning ? Theme.primary : Theme.surfaceVariantText
-                                anchors.verticalCenter: parent.verticalCenter
-                                crossed: !root.netbirdRunning
-                                colorize: root.colorizeIcon
-                            }
-
-                            Column {
-                                spacing: 2
-                                anchors.verticalCenter: parent.verticalCenter
-
-                                StyledText {
-                                    text: "NetBird Network"
-                                    font.pixelSize: Theme.fontSizeMedium
-                                    font.weight: Font.Bold
-                                    color: Theme.surfaceText
-                                }
-
-                                StyledText {
-                                    text: root.netbirdRunning ? (root.peerConnected + "/" + root.peerCount + " peers") : root.netbirdStatus
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    color: Theme.surfaceVariantText
-                                }
-                            }
-                        }
-
-                        Item { width: 1; height: Theme.spacingS }
-
-                        StyledText {
-                            text: root.netbirdIp
-                            font.pixelSize: Theme.fontSizeSmall
-                            color: Theme.primary
-                            visible: root.netbirdRunning && root.netbirdIp !== ""
-                            width: parent.width
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.copyToClipboard(root.netbirdIp)
-                            }
-                        }
-
-                        StyledText {
-                            text: root.netbirdFqdn
-                            font.pixelSize: 12
-                            color: Theme.surfaceVariantText
-                            visible: root.netbirdRunning && root.netbirdFqdn !== ""
-                            width: parent.width
-                            elide: Text.ElideRight
-                        }
-
-                        Item { width: 1; height: Theme.spacingS; visible: root.netbirdRunning }
-
-                        Row {
-                            width: parent.width
-                            spacing: Theme.spacingM
-                            visible: root.netbirdRunning
-
-                            Row {
-                                spacing: 4
-                                DankIcon {
-                                    name: "dns"
-                                    size: 16
-                                    color: root.managementConnected ? Theme.primary : Theme.error
-                                }
-                                StyledText {
-                                    text: "Management"
-                                    font.pixelSize: 12
-                                    color: Theme.surfaceVariantText
-                                }
-                            }
-
-                            Row {
-                                spacing: 4
-                                DankIcon {
-                                    name: "wifi"
-                                    size: 16
-                                    color: root.signalConnected ? Theme.primary : Theme.error
-                                }
-                                StyledText {
-                                    text: "Signal"
-                                    font.pixelSize: 12
-                                    color: Theme.surfaceVariantText
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: 1
-                    color: Theme.outlineVariant
-                    visible: root.netbirdRunning && root.sortedPeerList.length > 0
-                }
-
-                // Peers List
-                Item {
-                    width: parent.width
-                    height: Math.min(peersCol.implicitHeight, 250)
-                    clip: true
-                    visible: root.netbirdRunning && root.sortedPeerList.length > 0
-
-                    Flickable {
-                        anchors.fill: parent
-                        contentHeight: peersCol.implicitHeight
-                        contentWidth: width
-                        boundsBehavior: Flickable.StopAtBounds
-                        ScrollBar.vertical: ScrollBar {
-                            policy: ScrollBar.AsNeeded
-                            width: 6
-                            minimumSize: 0.1
-                            contentItem: Rectangle {
-                                radius: width / 2
-                                color: Theme.primary
-                                opacity: parent.pressed ? 0.9 : (parent.hovered ? 0.75 : 0.5)
-                            }
-                            background: Rectangle {
-                                radius: width / 2
-                                color: Theme.surfaceContainerHighest
-                                opacity: 0.4
-                            }
-                        }
-
-                        Column {
-                            id: peersCol
-                            width: parent.width
-                            spacing: Theme.spacingXS
-
-                            Repeater {
-                                model: root.sortedPeerList
-                                delegate: Item {
-                                    width: peersCol.width
-                                    height: peerRow.height + (actionsCol.visible ? actionsCol.implicitHeight + Theme.spacingXS : 0)
-
-                                    readonly property var peerData: modelData
-                                    readonly property bool peerConnected: peerData.status === "Connected"
-                                    property bool actionsOpen: root.isPeerOpen(peerData)
-
-                                    onPeerConnectedChanged: {
-                                        if (!peerConnected) {
-                                            root.setPeerOpen(peerData, false)
-                                        }
-                                    }
-
-                                    Column {
-                                        anchors.fill: parent
-                                        spacing: Theme.spacingXS
-
-                                        Rectangle {
-                                            id: peerRow
-                                            width: parent.width
-                                            height: 56
-                                            color: peerMouseArea.containsMouse ? Theme.surfaceContainerHighest : "transparent"
-                                            radius: Theme.cornerRadius
-
-                                            RowLayout {
-                                                anchors.fill: parent
-                                                anchors.margins: Theme.spacingM
-                                                spacing: Theme.spacingM
-
-                                                DankIcon {
-                                                    name: root.getConnectionIcon(peerData.connectionType)
-                                                    size: 20
-                                                    color: peerConnected ? Theme.primary : Theme.surfaceVariantText
-                                                }
-
-                                                Column {
-                                                    Layout.fillWidth: true
-                                                    spacing: 2
-                                                    StyledText {
-                                                        text: root.getHostname(peerData)
-                                                        color: Theme.surfaceText
-                                                        font.weight: Font.Medium
-                                                        elide: Text.ElideRight
-                                                        width: parent.width
-                                                    }
-                                                    StyledText {
-                                                        visible: peerData.connectionType !== ""
-                                                        text: peerData.connectionType
-                                                        font.pixelSize: 12
-                                                        color: Theme.surfaceVariantText
-                                                    }
-                                                }
-
-                                                Column {
-                                                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                                                    spacing: 2
-                                                    StyledText {
-                                                        text: peerData.netbirdIp
-                                                        font.pixelSize: Theme.fontSizeSmall
-                                                        color: Theme.surfaceVariantText
-                                                        anchors.right: parent.right
-                                                    }
-                                                    StyledText {
-                                                        visible: root.showPing && peerConnected
-                                                        text: {
-                                                            var pingVal = root.peerPings[peerData.netbirdIp] ?? "";
-                                                            if (pingVal === "") return "...";
-                                                            if (pingVal === "timeout") return "timeout";
-                                                            return pingVal + " ms";
-                                                        }
-                                                        font.pixelSize: 12
-                                                        anchors.right: parent.right
-                                                        color: {
-                                                            var pingVal = root.peerPings[peerData.netbirdIp] ?? "";
-                                                            if (pingVal === "" || pingVal === "timeout") return Theme.error;
-                                                            var ms = parseFloat(pingVal);
-                                                            if (ms < 50) return Theme.primary;
-                                                            if (ms < 150) return "#FF9800";
-                                                            return Theme.error;
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            MouseArea {
-                                                id: peerMouseArea
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                acceptedButtons: Qt.LeftButton | Qt.RightButton
-
-                                                onClicked: function(mouse) {
-                                                    if (mouse.button === Qt.LeftButton) {
-                                                        root.setPeerOpen(peerData, false)
-                                                        if (!peerConnected && root.defaultPeerAction !== "copy-ip") {
-                                                            return
-                                                        }
-                                                        root.executePeerAction(root.defaultPeerAction, peerData)
-                                                    } else if (mouse.button === Qt.RightButton) {
-                                                        if (peerConnected) {
-                                                            root.setPeerOpen(peerData, !root.isPeerOpen(peerData))
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        Column {
-                                            id: actionsCol
-                                            width: parent.width
-                                            spacing: 2
-                                            visible: peerConnected && actionsOpen
-
-                                            Repeater {
-                                                model: [
-                                                    { action: "copy-ip", label: "Copy IP", icon: "content_copy" },
-                                                    { action: "ssh", label: "SSH to host", icon: "terminal" },
-                                                    { action: "ping", label: "Ping host", icon: "network_ping" }
-                                                ]
-
-                                                delegate: Rectangle {
-                                                    width: parent.width
-                                                    height: 32
-                                                    radius: Theme.cornerRadius - 2
-                                                    color: actionArea.containsMouse ? Theme.surfaceContainerHighest : "transparent"
-
-                                                    Row {
-                                                        anchors.fill: parent
-                                                        anchors.leftMargin: Theme.spacingM
-                                                        anchors.rightMargin: Theme.spacingM
-                                                        spacing: Theme.spacingM
-
-                                                        DankIcon {
-                                                            name: modelData.icon
-                                                            size: 16
-                                                            color: Theme.surfaceText
-                                                            anchors.verticalCenter: parent.verticalCenter
-                                                        }
-
-                                                        StyledText {
-                                                            text: modelData.label
-                                                            font.pixelSize: Theme.fontSizeSmall
-                                                            color: Theme.surfaceText
-                                                            anchors.verticalCenter: parent.verticalCenter
-                                                        }
-                                                    }
-
-                                                    MouseArea {
-                                                        id: actionArea
-                                                        anchors.fill: parent
-                                                        hoverEnabled: true
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: {
-                                                            root.executePeerAction(modelData.action, peerData)
-                                                            root.setPeerOpen(peerData, false)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                StyledText {
-                    width: parent.width
-                    text: "No connected peers"
-                    font.pixelSize: Theme.fontSizeMedium
-                    color: Theme.surfaceVariantText
-                    horizontalAlignment: Text.AlignHCenter
-                    visible: root.netbirdRunning && root.sortedPeerList.length === 0
-                }
-
-                // Controls
-                Button {
-                    width: parent.width
-                    height: 40
-                    text: root.netbirdRunning ? "Disconnect" : "Connect"
-                    visible: root.netbirdInstalled
-
-                    contentItem: StyledText {
-                        text: parent.text
-                        color: parent.hovered ? Theme.surface : Theme.onPrimary
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        font.weight: Font.Bold
-                    }
-
-                    background: Rectangle {
-                        color: root.netbirdRunning ? Theme.error : Theme.primary
-                        radius: 20
-                        opacity: parent.hovered ? 0.8 : 1.0
-                    }
-
-                    onClicked: root.toggleNetbird()
-                }
-
-                // Admin Console button
-                Button {
-                    width: parent.width
-                    height: 40
-                    text: "Admin Console"
-                    visible: root.netbirdRunning
-
-                    contentItem: StyledText {
-                        text: parent.text
-                        color: Theme.primary
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        font.weight: Font.Medium
-                    }
-
-                    background: Rectangle {
-                        color: Theme.surfaceContainerHighest
-                        radius: 20
-                        opacity: parent.hovered ? 0.8 : 1.0
-                    }
-
-                    onClicked: Qt.openUrlExternally("https://app.netbird.io/")
-                }
+                widget: root
             }
         }
     }
