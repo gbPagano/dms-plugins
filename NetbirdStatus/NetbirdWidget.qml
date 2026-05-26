@@ -523,6 +523,12 @@ PluginComponent {
 
             Component.onCompleted: {
                 root._ccContentHeight = Qt.binding(() => ccDetailCol.implicitHeight + Theme.spacingM * 2)
+                if (!root.pluginService) {
+                    root.pluginService = PluginService
+                }
+                if (!root.pluginId) {
+                    root.pluginId = "netbirdStatus"
+                }
             }
         }
     }
