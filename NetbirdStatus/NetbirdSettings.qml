@@ -268,6 +268,14 @@ PluginSettings {
                 defaultValue: ""
             }
 
+            StringSetting {
+                settingKey: "adminConsoleUrl"
+                label: "Admin Console URL"
+                description: "URL opened by the Admin Console button. Change this if you self-host NetBird."
+                placeholder: "https://app.netbird.io/"
+                defaultValue: "https://app.netbird.io/"
+            }
+
             StyledText {
                 width: parent.width
                 text: "The plugin will attempt to auto-detect a compatible terminal emulator (ghostty, alacritty, kitty, wezterm, etc.) if this is left empty."

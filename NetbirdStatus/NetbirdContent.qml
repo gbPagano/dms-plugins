@@ -388,7 +388,7 @@ Column {
                 opacity: parent.hovered ? 0.8 : 1.0
             }
 
-            onClicked: Qt.openUrlExternally("https://app.netbird.io/")
+            onClicked: Qt.openUrlExternally(contentRoot.widget.adminConsoleUrl)
         }
     }
 }

@@ -21,6 +21,7 @@ PluginComponent {
     property int pingCount: pluginData.pingCount !== undefined ? pluginData.pingCount : 5
     property string customTerminal: pluginData.terminalCommand || ""
     property bool colorizeIcon: pluginData.colorizeIcon !== undefined ? pluginData.colorizeIcon : true
+    property string adminConsoleUrl: pluginData.adminConsoleUrl || "https://app.netbird.io/"
     function normalizePeerAction(value) {
         if (value === "Copy IP") return "copy-ip"
         if (value === "SSH to host") return "ssh"
