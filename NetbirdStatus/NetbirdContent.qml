@@ -11,27 +11,28 @@ Column {
 
     property var widget
     property int peersListMaxHeight: 250
+    property bool compactHeader: false
 
     spacing: Theme.spacingM
 
     StyledRect {
         width: parent.width
-        height: statusCol.implicitHeight + Theme.spacingL * 2
+        height: statusCol.implicitHeight + (contentRoot.compactHeader ? Theme.spacingM * 2 : Theme.spacingL * 2)
         radius: Theme.cornerRadius
         color: Theme.surfaceContainerHigh
 
         Column {
             id: statusCol
             anchors.fill: parent
-            anchors.margins: Theme.spacingL
-            spacing: Theme.spacingS
+            anchors.margins: contentRoot.compactHeader ? Theme.spacingM : Theme.spacingL
+            spacing: contentRoot.compactHeader ? Theme.spacingXS : Theme.spacingS
 
             Row {
                 width: parent.width
-                spacing: Theme.spacingM
+                spacing: contentRoot.compactHeader ? Theme.spacingS : Theme.spacingM
 
                 NetBirdIcon {
-                    size: 32
+                    size: contentRoot.compactHeader ? 24 : 32
                     color: contentRoot.widget.netbirdRunning ? Theme.primary : Theme.surfaceVariantText
                     anchors.verticalCenter: parent.verticalCenter
                     crossed: !contentRoot.widget.netbirdRunning
@@ -44,26 +45,29 @@ Column {
 
                     StyledText {
                         text: "NetBird Network"
-                        font.pixelSize: Theme.fontSizeMedium
+                        font.pixelSize: contentRoot.compactHeader ? Theme.fontSizeSmall : Theme.fontSizeMedium
                         font.weight: Font.Bold
                         color: Theme.surfaceText
                     }
 
                     StyledText {
                         text: contentRoot.widget.netbirdRunning ? (contentRoot.widget.peerConnected + "/" + contentRoot.widget.peerCount + " peers") : contentRoot.widget.netbirdStatus
-                        font.pixelSize: Theme.fontSizeSmall
+                        font.pixelSize: contentRoot.compactHeader ? 12 : Theme.fontSizeSmall
                         color: Theme.surfaceVariantText
                     }
                 }
             }
 
-            Item { width: 1; height: Theme.spacingS }
+            Item {
+                width: 1
+                height: contentRoot.compactHeader ? Theme.spacingXS : Theme.spacingS
+            }
 
             StyledText {
                 text: contentRoot.widget.netbirdIp
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: contentRoot.compactHeader ? 12 : Theme.fontSizeSmall
                 color: Theme.primary
-                visible: contentRoot.widget.netbirdRunning && contentRoot.widget.netbirdIp !== ""
+                visible: contentRoot.widget.showIpAddress && contentRoot.widget.netbirdRunning && contentRoot.widget.netbirdIp !== ""
                 width: parent.width
 
                 MouseArea {
@@ -77,23 +81,29 @@ Column {
                 text: contentRoot.widget.netbirdFqdn
                 font.pixelSize: 12
                 color: Theme.surfaceVariantText
-                visible: contentRoot.widget.netbirdRunning && contentRoot.widget.netbirdFqdn !== ""
+                visible: !contentRoot.compactHeader && contentRoot.widget.netbirdRunning && contentRoot.widget.netbirdFqdn !== ""
                 width: parent.width
                 elide: Text.ElideRight
             }
 
-            Item { width: 1; height: Theme.spacingS; visible: contentRoot.widget.netbirdRunning }
+            Item {
+                width: 1
+                height: contentRoot.compactHeader ? Theme.spacingXS : Theme.spacingS
+                visible: contentRoot.widget.netbirdRunning
+            }
 
-            Row {
+            RowLayout {
+                id: compactStatusRow
                 width: parent.width
-                spacing: Theme.spacingM
+                spacing: contentRoot.compactHeader ? Theme.spacingS : Theme.spacingM
                 visible: contentRoot.widget.netbirdRunning
 
                 Row {
                     spacing: 4
+                    Layout.alignment: Qt.AlignVCenter
                     DankIcon {
                         name: "dns"
-                        size: 16
+                        size: contentRoot.compactHeader ? 14 : 16
                         color: contentRoot.widget.managementConnected ? Theme.primary : Theme.error
                     }
                     StyledText {
@@ -105,9 +115,10 @@ Column {
 
                 Row {
                     spacing: 4
+                    Layout.alignment: Qt.AlignVCenter
                     DankIcon {
                         name: "wifi"
-                        size: 16
+                        size: contentRoot.compactHeader ? 14 : 16
                         color: contentRoot.widget.signalConnected ? Theme.primary : Theme.error
                     }
                     StyledText {
@@ -115,6 +126,16 @@ Column {
                         font.pixelSize: 12
                         color: Theme.surfaceVariantText
                     }
+                }
+
+                StyledText {
+                    visible: contentRoot.compactHeader && contentRoot.widget.netbirdFqdn !== ""
+                    text: contentRoot.widget.netbirdFqdn
+                    font.pixelSize: 12
+                    color: Theme.surfaceVariantText
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
                 }
             }
         }
@@ -174,7 +195,7 @@ Column {
 
                         onPeerConnectedChanged: {
                             if (!peerConnected) {
-                                contentRoot.widget.setPeerOpen(peerData, false)
+                                contentRoot.widget.setPeerOpen(peerData, false);
                             }
                         }
 
@@ -231,18 +252,23 @@ Column {
                                             visible: contentRoot.widget.showPing && peerConnected
                                             text: {
                                                 var pingVal = contentRoot.widget.peerPings[peerData.netbirdIp] ?? "";
-                                                if (pingVal === "") return "...";
-                                                if (pingVal === "timeout") return "timeout";
+                                                if (pingVal === "")
+                                                    return "...";
+                                                if (pingVal === "timeout")
+                                                    return "timeout";
                                                 return pingVal + " ms";
                                             }
                                             font.pixelSize: 12
                                             anchors.right: parent.right
                                             color: {
                                                 var pingVal = contentRoot.widget.peerPings[peerData.netbirdIp] ?? "";
-                                                if (pingVal === "" || pingVal === "timeout") return Theme.error;
+                                                if (pingVal === "" || pingVal === "timeout")
+                                                    return Theme.error;
                                                 var ms = parseFloat(pingVal);
-                                                if (ms < 50) return Theme.primary;
-                                                if (ms < 150) return "#FF9800";
+                                                if (ms < 50)
+                                                    return Theme.primary;
+                                                if (ms < 150)
+                                                    return "#FF9800";
                                                 return Theme.error;
                                             }
                                         }
@@ -256,16 +282,16 @@ Column {
                                     cursorShape: Qt.PointingHandCursor
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
 
-                                    onClicked: function(mouse) {
+                                    onClicked: function (mouse) {
                                         if (mouse.button === Qt.LeftButton) {
-                                            contentRoot.widget.setPeerOpen(peerData, false)
+                                            contentRoot.widget.setPeerOpen(peerData, false);
                                             if (!peerConnected && contentRoot.widget.defaultPeerAction !== "copy-ip") {
-                                                return
+                                                return;
                                             }
-                                            contentRoot.widget.executePeerAction(contentRoot.widget.defaultPeerAction, peerData)
+                                            contentRoot.widget.executePeerAction(contentRoot.widget.defaultPeerAction, peerData);
                                         } else if (mouse.button === Qt.RightButton) {
                                             if (peerConnected) {
-                                                contentRoot.widget.setPeerOpen(peerData, !contentRoot.widget.isPeerOpen(peerData))
+                                                contentRoot.widget.setPeerOpen(peerData, !contentRoot.widget.isPeerOpen(peerData));
                                             }
                                         }
                                     }
@@ -280,9 +306,21 @@ Column {
 
                                 Repeater {
                                     model: [
-                                        { action: "copy-ip", label: "Copy IP", icon: "content_copy" },
-                                        { action: "ssh", label: "SSH to host", icon: "terminal" },
-                                        { action: "ping", label: "Ping host", icon: "network_ping" }
+                                        {
+                                            action: "copy-ip",
+                                            label: "Copy IP",
+                                            icon: "content_copy"
+                                        },
+                                        {
+                                            action: "ssh",
+                                            label: "SSH to host",
+                                            icon: "terminal"
+                                        },
+                                        {
+                                            action: "ping",
+                                            label: "Ping host",
+                                            icon: "network_ping"
+                                        }
                                     ]
 
                                     delegate: Rectangle {
@@ -318,8 +356,8 @@ Column {
                                             hoverEnabled: true
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: {
-                                                contentRoot.widget.executePeerAction(modelData.action, peerData)
-                                                contentRoot.widget.setPeerOpen(peerData, false)
+                                                contentRoot.widget.executePeerAction(modelData.action, peerData);
+                                                contentRoot.widget.setPeerOpen(peerData, false);
                                             }
                                         }
                                     }

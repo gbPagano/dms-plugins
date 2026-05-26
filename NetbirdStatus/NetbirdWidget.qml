@@ -23,10 +23,13 @@ PluginComponent {
     property bool colorizeIcon: pluginData.colorizeIcon !== undefined ? pluginData.colorizeIcon : true
     property string adminConsoleUrl: pluginData.adminConsoleUrl || "https://app.netbird.io/"
     function normalizePeerAction(value) {
-        if (value === "Copy IP") return "copy-ip"
-        if (value === "SSH to host") return "ssh"
-        if (value === "Ping host") return "ping"
-        return value || "copy-ip"
+        if (value === "Copy IP")
+            return "copy-ip";
+        if (value === "SSH to host")
+            return "ssh";
+        if (value === "Ping host")
+            return "ping";
+        return value || "copy-ip";
     }
 
     property string defaultPeerAction: normalizePeerAction(pluginData.defaultPeerAction)
@@ -47,31 +50,33 @@ PluginComponent {
     property bool _stateRestored: false
 
     onPluginDataChanged: {
-        if (_stateRestored) return
+        if (_stateRestored)
+            return;
         if (pluginData && pluginData.lastInstalled !== undefined) {
-            root.netbirdInstalled = pluginData.lastInstalled === true
-            root.netbirdRunning = pluginData.lastRunning === true
-            root.netbirdIp = pluginData.lastIp || ""
-            root.netbirdFqdn = pluginData.lastFqdn || ""
-            root.peerCount = pluginData.lastPeerCount || 0
-            root.peerConnected = pluginData.lastPeerConnected || 0
+            root.netbirdInstalled = pluginData.lastInstalled === true;
+            root.netbirdRunning = pluginData.lastRunning === true;
+            root.netbirdIp = pluginData.lastIp || "";
+            root.netbirdFqdn = pluginData.lastFqdn || "";
+            root.peerCount = pluginData.lastPeerCount || 0;
+            root.peerConnected = pluginData.lastPeerConnected || 0;
             if (!root.netbirdInstalled) {
-                root.netbirdStatus = "Not installed"
+                root.netbirdStatus = "Not installed";
             } else {
-                root.netbirdStatus = root.netbirdRunning ? "Connected" : "Disconnected"
+                root.netbirdStatus = root.netbirdRunning ? "Connected" : "Disconnected";
             }
-            root._stateRestored = true
+            root._stateRestored = true;
         }
     }
 
     function _saveStateCache() {
-        if (!pluginService) return
-        pluginService.savePluginData("netbirdStatus", "lastInstalled", root.netbirdInstalled)
-        pluginService.savePluginData("netbirdStatus", "lastRunning", root.netbirdRunning)
-        pluginService.savePluginData("netbirdStatus", "lastIp", root.netbirdIp)
-        pluginService.savePluginData("netbirdStatus", "lastFqdn", root.netbirdFqdn)
-        pluginService.savePluginData("netbirdStatus", "lastPeerCount", root.peerCount)
-        pluginService.savePluginData("netbirdStatus", "lastPeerConnected", root.peerConnected)
+        if (!pluginService)
+            return;
+        pluginService.savePluginData("netbirdStatus", "lastInstalled", root.netbirdInstalled);
+        pluginService.savePluginData("netbirdStatus", "lastRunning", root.netbirdRunning);
+        pluginService.savePluginData("netbirdStatus", "lastIp", root.netbirdIp);
+        pluginService.savePluginData("netbirdStatus", "lastFqdn", root.netbirdFqdn);
+        pluginService.savePluginData("netbirdStatus", "lastPeerCount", root.peerCount);
+        pluginService.savePluginData("netbirdStatus", "lastPeerConnected", root.peerConnected);
     }
 
     property var peerPings: ({})
@@ -87,33 +92,41 @@ PluginComponent {
 
     // ── Helper functions ──
     function parseIp(ip) {
-        if (!ip) return "";
+        if (!ip)
+            return "";
         var idx = ip.indexOf("/");
-        if (idx > 0) return ip.substring(0, idx);
+        if (idx > 0)
+            return ip.substring(0, idx);
         return ip;
     }
 
     function getHostname(peer) {
-        if (!peer) return "Unknown";
+        if (!peer)
+            return "Unknown";
         if (peer.fqdn) {
             var parts = peer.fqdn.split(".");
-            if (parts.length > 0) return parts[0];
+            if (parts.length > 0)
+                return parts[0];
         }
         return peer.netbirdIp || "Unknown";
     }
 
     function getConnectionIcon(connType) {
-        if (!connType) return "signal_disconnected";
+        if (!connType)
+            return "signal_disconnected";
         switch (connType.toLowerCase()) {
-        case "p2p": return "compare_arrows";
-        case "relayed": return "cloud";
-        default: return "signal_disconnected";
+        case "p2p":
+            return "compare_arrows";
+        case "relayed":
+            return "cloud";
+        default:
+            return "signal_disconnected";
         }
     }
 
     function requireTerminal() {
         if (!terminalDetected) {
-            ToastService.showError("NetBird Terminal Not Configured", "Please install a supported terminal emulator to use SSH and Ping features")
+            ToastService.showError("NetBird Terminal Not Configured", "Please install a supported terminal emulator to use SSH and Ping features");
             return false;
         }
         return true;
@@ -128,15 +141,17 @@ PluginComponent {
         if (action === "copy-ip") {
             if (peer && peer.netbirdIp) {
                 copyToClipboard(peer.netbirdIp);
-                ToastService.showInfo("IP Copied", "IP of " + getHostname(peer) + " copied to clipboard")
+                ToastService.showInfo("IP Copied", "IP of " + getHostname(peer) + " copied to clipboard");
             }
         } else if (action === "ssh") {
-            if (!requireTerminal()) return;
+            if (!requireTerminal())
+                return;
             if (peer && peer.netbirdIp) {
                 Quickshell.execDetached([root.activeTerminal, "-e", "ssh", peer.netbirdIp]);
             }
         } else if (action === "ping") {
-            if (!requireTerminal()) return;
+            if (!requireTerminal())
+                return;
             if (peer && peer.netbirdIp) {
                 Quickshell.execDetached([root.activeTerminal, "-e", "ping", "-c", root.pingCount.toString(), peer.netbirdIp]);
             }
@@ -144,19 +159,22 @@ PluginComponent {
     }
 
     function getPeerKey(peer) {
-        if (!peer) return "";
+        if (!peer)
+            return "";
         return peer.netbirdIp || peer.fqdn || "";
     }
 
     function isPeerOpen(peer) {
         const key = getPeerKey(peer);
-        if (!key) return false;
+        if (!key)
+            return false;
         return peerActionOpenMap[key] === true;
     }
 
     function setPeerOpen(peer, open) {
         const key = getPeerKey(peer);
-        if (!key) return;
+        if (!key)
+            return;
         const updated = Object.assign({}, peerActionOpenMap);
         if (open) {
             updated[key] = true;
@@ -294,7 +312,7 @@ PluginComponent {
         onExited: function (exitCode, exitStatus) {
             if (exitCode === 0) {
                 var message = root.lastToggleAction === "connect" ? "NetBird Connected" : "NetBird Disconnected";
-                ToastService.showInfo("NetBird", message)
+                ToastService.showInfo("NetBird", message);
             }
             statusDelayTimer.start();
         }
@@ -382,7 +400,8 @@ PluginComponent {
     }
 
     function toggleNetbird() {
-        if (!root.netbirdInstalled) return;
+        if (!root.netbirdInstalled)
+            return;
         root.isRefreshing = true;
         if (root.netbirdRunning) {
             root.lastToggleAction = "disconnect";
@@ -417,7 +436,8 @@ PluginComponent {
 
     // ── Pre-Sorted Peer List ──
     property var sortedPeerList: {
-        if (!root.peerList) return [];
+        if (!root.peerList)
+            return [];
         var peers = root.peerList.slice();
 
         if (root.hideDisconnected) {
@@ -429,8 +449,10 @@ PluginComponent {
         peers.sort(function (a, b) {
             var aConnected = a.status === "Connected";
             var bConnected = b.status === "Connected";
-            if (aConnected && !bConnected) return -1;
-            if (!aConnected && bConnected) return 1;
+            if (aConnected && !bConnected)
+                return -1;
+            if (!aConnected && bConnected)
+                return 1;
 
             var nameA = getHostname(a).toLowerCase();
             var nameB = getHostname(b).toLowerCase();
@@ -475,7 +497,8 @@ PluginComponent {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    if (typeof root.triggerPopout === "function") root.triggerPopout()
+                    if (typeof root.triggerPopout === "function")
+                        root.triggerPopout();
                 }
             }
         }
@@ -513,7 +536,8 @@ PluginComponent {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    if (typeof root.triggerPopout === "function") root.triggerPopout()
+                    if (typeof root.triggerPopout === "function")
+                        root.triggerPopout();
                 }
             }
         }
@@ -525,13 +549,16 @@ PluginComponent {
     ccWidgetIcon: _ccInitialCheck ? "sync" : (root.netbirdRunning ? "vpn_lock" : "vpn_key_off")
     ccWidgetPrimaryText: "NetBird"
     ccWidgetSecondaryText: {
-        if (_ccInitialCheck) return "Checking..."
-        if (!root.netbirdInstalled) return "Not installed"
+        if (_ccInitialCheck)
+            return "Checking...";
+        if (!root.netbirdInstalled)
+            return "Not installed";
         if (root.netbirdRunning) {
-            if (root.netbirdIp !== "") return root.netbirdIp
-            return root.peerConnected + "/" + root.peerCount + " peers"
+            if (root.netbirdIp !== "")
+                return root.netbirdIp;
+            return root.peerConnected + "/" + root.peerCount + " peers";
         }
-        return root.netbirdStatus
+        return root.netbirdStatus;
     }
     ccWidgetIsActive: !_ccInitialCheck && root.netbirdRunning
     ccWidgetIsToggle: true
@@ -554,16 +581,17 @@ PluginComponent {
                 anchors.top: parent.top
                 anchors.margins: Theme.spacingM
                 widget: root
+                compactHeader: true
                 peersListMaxHeight: 200
             }
 
             Component.onCompleted: {
-                root._ccContentHeight = Qt.binding(() => ccDetailCol.implicitHeight + Theme.spacingM * 2)
+                root._ccContentHeight = Qt.binding(() => ccDetailCol.implicitHeight + Theme.spacingM * 2);
                 if (!root.pluginService) {
-                    root.pluginService = PluginService
+                    root.pluginService = PluginService;
                 }
                 if (!root.pluginId) {
-                    root.pluginId = "netbirdStatus"
+                    root.pluginId = "netbirdStatus";
                 }
             }
         }

@@ -114,7 +114,7 @@ PluginSettings {
                 interval: 300
                 repeat: false
                 onTriggered: {
-                    root.saveValue("refreshInterval", Math.round(refreshIntervalSlider.value))
+                    root.saveValue("refreshInterval", Math.round(refreshIntervalSlider.value));
                 }
             }
 
@@ -150,8 +150,8 @@ PluginSettings {
                             value: loadValue("refreshInterval", 30000)
                         }
 
-                        onSliderValueChanged: (newValue) => {
-                            refreshIntervalDebounceTimer.restart()
+                        onSliderValueChanged: newValue => {
+                            refreshIntervalDebounceTimer.restart();
                         }
                     }
 
@@ -178,7 +178,7 @@ PluginSettings {
                 interval: 300
                 repeat: false
                 onTriggered: {
-                    root.saveValue("pingCount", Math.round(pingCountSlider.value))
+                    root.saveValue("pingCount", Math.round(pingCountSlider.value));
                 }
             }
 
@@ -214,8 +214,8 @@ PluginSettings {
                             value: loadValue("pingCount", 5)
                         }
 
-                        onSliderValueChanged: (newValue) => {
-                            pingCountDebounceTimer.restart()
+                        onSliderValueChanged: newValue => {
+                            pingCountDebounceTimer.restart();
                         }
                     }
 
@@ -325,11 +325,7 @@ PluginSettings {
                     DankDropdown {
                         id: defaultActionDropdown
                         width: parent.width - 180 - Theme.spacingM
-                        options: [
-                            "Copy IP",
-                            "SSH to host",
-                            "Ping host"
-                        ]
+                        options: ["Copy IP", "SSH to host", "Ping host"]
                         compactMode: true
 
                         Binding {
@@ -338,8 +334,8 @@ PluginSettings {
                             value: loadValue("defaultPeerAction", "Copy IP")
                         }
 
-                        onValueChanged: (value) => {
-                            saveValue("defaultPeerAction", value)
+                        onValueChanged: value => {
+                            saveValue("defaultPeerAction", value);
                         }
                     }
                 }
