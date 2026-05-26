@@ -139,7 +139,9 @@ Column {
             contentWidth: width
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar {
+                id: vScrollBar
                 policy: ScrollBar.AsNeeded
+                visible: size < 1.0
                 width: 6
                 minimumSize: 0.1
                 contentItem: Rectangle {
@@ -151,6 +153,7 @@ Column {
                     radius: width / 2
                     color: Theme.surfaceContainerHighest
                     opacity: 0.4
+                    visible: vScrollBar.size < 1.0
                 }
             }
 
