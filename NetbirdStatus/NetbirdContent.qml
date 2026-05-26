@@ -338,49 +338,54 @@ Column {
         visible: contentRoot.widget.netbirdRunning && contentRoot.widget.sortedPeerList.length === 0
     }
 
-    Button {
+    RowLayout {
         width: parent.width
-        height: 40
-        text: contentRoot.widget.netbirdRunning ? "Disconnect" : "Connect"
+        spacing: Theme.spacingS
         visible: contentRoot.widget.netbirdInstalled
 
-        contentItem: StyledText {
-            text: parent.text
-            color: parent.hovered ? Theme.surface : Theme.onPrimary
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            font.weight: Font.Bold
+        Button {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 48
+            text: contentRoot.widget.netbirdRunning ? "Disconnect" : "Connect"
+
+            contentItem: StyledText {
+                text: parent.text
+                color: parent.hovered ? Theme.surface : Theme.onPrimary
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                font.weight: Font.Bold
+            }
+
+            background: Rectangle {
+                color: contentRoot.widget.netbirdRunning ? Theme.error : Theme.primary
+                radius: 24
+                opacity: parent.hovered ? 0.8 : 1.0
+            }
+
+            onClicked: contentRoot.widget.toggleNetbird()
         }
 
-        background: Rectangle {
-            color: contentRoot.widget.netbirdRunning ? Theme.error : Theme.primary
-            radius: 20
-            opacity: parent.hovered ? 0.8 : 1.0
+        Button {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 48
+            text: "Admin Console"
+            visible: contentRoot.widget.netbirdRunning
+
+            contentItem: StyledText {
+                text: parent.text
+                color: Theme.primary
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                font.weight: Font.Medium
+            }
+
+            background: Rectangle {
+                color: Theme.surfaceContainerHighest
+                radius: 24
+                opacity: parent.hovered ? 0.8 : 1.0
+            }
+
+            onClicked: Qt.openUrlExternally("https://app.netbird.io/")
         }
-
-        onClicked: contentRoot.widget.toggleNetbird()
-    }
-
-    Button {
-        width: parent.width
-        height: 40
-        text: "Admin Console"
-        visible: contentRoot.widget.netbirdRunning
-
-        contentItem: StyledText {
-            text: parent.text
-            color: Theme.primary
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            font.weight: Font.Medium
-        }
-
-        background: Rectangle {
-            color: Theme.surfaceContainerHighest
-            radius: 20
-            opacity: parent.hovered ? 0.8 : 1.0
-        }
-
-        onClicked: Qt.openUrlExternally("https://app.netbird.io/")
     }
 }
